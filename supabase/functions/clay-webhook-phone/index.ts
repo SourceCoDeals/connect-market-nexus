@@ -83,7 +83,8 @@ serve(async (req: Request) => {
         payload.cell,
         payload.cell_phone,
         payload.direct_phone,
-      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      ]
+        .find((value): value is string => typeof value === 'string' && value.trim().length > 0)
         ?.trim() || null;
 
     // 6. Update tracking row
@@ -124,7 +125,7 @@ serve(async (req: Request) => {
         p_source: 'clay_phone',
         p_enrichment: {
           provider: 'clay_phone',
-          confidence: 'high',
+          confidence: 'verified', // Clay "high" → canonical 'verified' (contacts.confidence CHECK)
           source_query: `clay_phone:${request.linkedin_url}`,
         },
       });
@@ -163,7 +164,11 @@ serve(async (req: Request) => {
             p_identity: { linkedin_url: request.linkedin_url || null },
             p_fields: { phone: resultPhone, mobile_phone_1: resultPhone, phone_source: 'clay' },
             p_source: 'clay_phone',
-            p_enrichment: { provider: 'clay_phone', confidence: 'high', source_query: `clay_phone:${request.linkedin_url}` },
+            p_enrichment: {
+              provider: 'clay_phone',
+              confidence: 'verified',
+              source_query: `clay_phone:${request.linkedin_url}`,
+            },
           });
 
           if (contactUpdateErr) {
@@ -178,9 +183,7 @@ serve(async (req: Request) => {
         }
       }
 
-      console.log(
-        `[clay-webhook-phone] Enrichment saved — phone: ${resultPhone} for ${fullName}`,
-      );
+      console.log(`[clay-webhook-phone] Enrichment saved — phone: ${resultPhone} for ${fullName}`);
     } else {
       console.log(`[clay-webhook-phone] No phone found by Clay for request: ${requestId}`);
     }

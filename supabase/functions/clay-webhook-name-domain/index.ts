@@ -120,7 +120,7 @@ serve(async (req: Request) => {
         p_source: 'clay_name_domain',
         p_enrichment: {
           provider: 'clay_name_domain',
-          confidence: 'medium',
+          confidence: 'likely', // Clay "medium" → canonical 'likely' (contacts.confidence CHECK)
           source_query: `clay:${request.first_name} ${request.last_name}@${request.domain}`,
         },
       });
@@ -160,7 +160,7 @@ serve(async (req: Request) => {
             p_source: 'clay_name_domain',
             p_enrichment: {
               provider: 'clay_name_domain',
-              confidence: 'medium',
+              confidence: 'likely', // Clay "medium" → canonical 'likely' (contacts.confidence CHECK)
               source_query: `clay:${request.first_name} ${request.last_name}@${request.domain}`,
             },
           });

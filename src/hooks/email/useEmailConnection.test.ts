@@ -59,20 +59,68 @@ describe('extractFunctionError', () => {
     );
   });
 
-  it('uses the fallback when FunctionsHttpError body is not JSON', async () => {
+  it('surfaces the HTTP status + first line when FunctionsHttpError body is not JSON', async () => {
+    // Supabase edge-function wall-clock timeouts (>150s) and platform
+    // 502/504s return plain text bodies rather than our JSON
+    // { error: "..." } envelope. The JSON extraction path falls through,
+    // and the old behavior was to return the generic
+    // "Edge Function returned a non-2xx status code" toast that left
+    // admins guessing. Now we surface the HTTP status + the first line
+    // of the body so the operator can tell a 504 timeout from a 403
+    // permission error.
     const response = new Response('<!doctype html><html>Bad Gateway</html>', {
       status: 502,
       headers: { 'Content-Type': 'text/html' },
     });
-    // Important: the error.message itself should NOT be used when the
-    // context body exists but is unparseable — we fall back to error.message
-    // since that's still better than the caller's generic fallback.
     const fnError = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
       context: response,
     });
 
     expect(await extractFunctionError(fnError, 'Backfill failed')).toBe(
-      'Edge Function returned a non-2xx status code',
+      'HTTP 502: <!doctype html><html>Bad Gateway</html>',
+    );
+  });
+
+  it('surfaces a 504 upstream timeout body text (teaser generation wall-clock case)', async () => {
+    // Real-world case: generate-lead-memo exceeds the Supabase edge-function
+    // wall-clock limit while producing an anonymous teaser. The platform
+    // returns a plain-text 504 rather than our JSON envelope, and the
+    // user saw only "Edge Function returned a non-2xx status code". The
+    // HTTP-status branch below makes the failure diagnosable.
+    const response = new Response('upstream request timeout', {
+      status: 504,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+    const fnError = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+      context: response,
+    });
+
+    expect(await extractFunctionError(fnError, 'Generation failed')).toBe(
+      'HTTP 504: upstream request timeout',
+    );
+  });
+
+  it('truncates long non-JSON bodies to the first line / 200 chars', async () => {
+    const longBody = 'first line details here\n' + 'x'.repeat(500);
+    const response = new Response(longBody, {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+    const fnError = Object.assign(new Error('non-2xx'), { context: response });
+
+    const result = await extractFunctionError(fnError, 'fallback');
+    expect(result).toBe('HTTP 500: first line details here');
+  });
+
+  it('returns an empty-body status message when the non-JSON body is also empty', async () => {
+    const response = new Response('', {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+    const fnError = Object.assign(new Error('non-2xx'), { context: response });
+
+    expect(await extractFunctionError(fnError, 'fallback')).toBe(
+      'Edge Function returned HTTP 500 with empty body',
     );
   });
 

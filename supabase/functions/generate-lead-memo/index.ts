@@ -93,6 +93,29 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // Wall-clock budget tracking: edge functions die at ~150s and Supabase's
+  // platform response is a non-JSON 504 that the client surfaces as the
+  // generic "Edge Function returned a non-2xx status code" toast. We log
+  // a structured line at every exit so Supabase's log aggregation can be
+  // filtered for slow / failing generations even when no exception fires.
+  const requestStartedAt = Date.now();
+  const logExit = (
+    outcome: 'success' | 'validation_error' | 'gate_denied' | 'error',
+    extra: Record<string, unknown> = {},
+  ) => {
+    // Structured telemetry line consumed by Supabase log aggregation —
+    // intentionally info-level so it's separable from warn/error noise.
+    // eslint-disable-next-line no-console
+    console.log(
+      JSON.stringify({
+        edge_fn: 'generate-lead-memo',
+        outcome,
+        duration_ms: Date.now() - requestStartedAt,
+        ...extra,
+      }),
+    );
+  };
+
   try {
     const {
       deal_id,
@@ -102,6 +125,7 @@ Deno.serve(async (req: Request) => {
     } = await req.json();
 
     if (!deal_id) {
+      logExit('validation_error', { reason: 'missing_deal_id' });
       return new Response(JSON.stringify({ error: 'deal_id is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -109,19 +133,24 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!['anonymous_teaser', 'full_memo', 'both'].includes(memo_type)) {
+      logExit('validation_error', { reason: 'invalid_memo_type', memo_type });
       return new Response(
         JSON.stringify({ error: 'memo_type must be anonymous_teaser, full_memo, or both' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    // GUARD: Anonymous Teaser requires a Final PDF of the Full Lead Memo
+    // GUARD: Anonymous Teaser requires a Final PDF of the Full Lead Memo.
+    // Filter by status='active' so a soft-deleted full_memo row (which the
+    // rest of this function already excludes at line ~170) doesn't
+    // accidentally unlock the teaser and produce output against stale data.
     if (memo_type === 'anonymous_teaser' || memo_type === 'both') {
       const { data: fullMemoPdf } = await supabaseAdmin
         .from('data_room_documents')
         .select('id')
         .eq('deal_id', deal_id)
         .eq('document_category', 'full_memo')
+        .eq('status', 'active')
         .limit(1);
       if (!fullMemoPdf?.length) {
         return new Response(
@@ -162,7 +191,13 @@ Deno.serve(async (req: Request) => {
       .eq('pushed_listing_id', deal_id)
       .maybeSingle();
 
-    // Fetch data room documents with extracted text
+    // Fetch data room documents with extracted text.
+    //
+    // Cap at 20 docs so deals with heavy due-diligence uploads (one seller
+    // recently had 80+ PDFs) don't blow the Claude prompt budget. Per-doc
+    // char-cap already exists downstream in buildDataContext; the count-cap
+    // guards the multiplicative explosion (20 × 25K chars = 500K chars ≈
+    // 125K tokens, still fits Sonnet's 200K window).
     let { data: dataRoomDocs } = await supabaseAdmin
       .from('data_room_documents')
       .select('file_name, text_content')
@@ -170,7 +205,8 @@ Deno.serve(async (req: Request) => {
       .eq('document_category', 'data_room')
       .eq('status', 'active')
       .not('text_content', 'is', null)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(20);
 
     // Listing completeness check: require minimum data before generating memos
     // (Audit P1: prevent blank-context memo generation)
@@ -257,7 +293,8 @@ Deno.serve(async (req: Request) => {
             .eq('document_category', 'data_room')
             .eq('status', 'active')
             .not('text_content', 'is', null)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(20);
           dataRoomDocs = refreshedDocs;
 
           missingCritical = computeMissingCritical(deal, transcripts);
@@ -347,6 +384,24 @@ Deno.serve(async (req: Request) => {
         supabaseAdmin,
       );
 
+      // Empty-content guard: if Claude hallucinated non-section output the
+      // validator retry loop eventually gives up and returns an empty
+      // sections array. We MUST NOT persist an empty draft — it produces
+      // "No preview available" in the UI, wastes the admin's click, and
+      // has to be manually cleaned up from the table. Prefer a 502 the
+      // user can retry.
+      if (
+        !teaserContent ||
+        !Array.isArray((teaserContent as { sections?: MemoSection[] }).sections) ||
+        (teaserContent as { sections: MemoSection[] }).sections.length === 0
+      ) {
+        throw new Error(
+          'Teaser generation returned no parseable sections — AI output was ' +
+            'likely malformed. Retry in a few seconds; if it persists, ' +
+            'check the Anthropic status page.',
+        );
+      }
+
       // CTO audit: delete any existing draft memo of the same type+branding
       // for this deal before inserting the new one. Previously regenerating
       // a memo produced a new row every time, leaving the table full of
@@ -413,16 +468,21 @@ Deno.serve(async (req: Request) => {
         console.error('Failed to sync custom_sections to deal:', dealSyncError);
       }
 
-      // Check if a marketplace listing (child row) exists for this deal
+      // Check if a marketplace listing (child row) exists for this deal.
+      // Filter out archived rows — silently re-populating description /
+      // hero_description on an archived listing would re-surface it on
+      // dashboards that key off those fields.
       const { data: marketplaceListing } = await supabaseAdmin
         .from('listings')
-        .select('id')
+        .select('id, status')
         .eq('source_deal_id', deal_id)
         .eq('is_internal_deal', false)
+        .neq('status', 'archived')
         .maybeSingle();
 
       if (marketplaceListing) {
-        // Build ONE unified description from all sections
+        // Build ONE unified description from all sections — these are
+        // pure-text transforms, so we can run them inline cheaply.
         const unifiedDescription = contentSections
           .map((s: MemoSection) => `**${s.title}**\n\n${s.content}`)
           .join('\n\n---\n\n');
@@ -434,29 +494,96 @@ Deno.serve(async (req: Request) => {
           })
           .join('');
 
-        const listingUpdate: Record<string, unknown> = {
-          custom_sections: customSections,
-          description: unifiedDescription,
-          description_html: `<div class="unified-memo">${unifiedHtml}</div>`,
-        };
-
-        // Generate a compelling hero_description from the memo content via AI.
-        // The hero is the first thing buyers see on cards and landing pages —
-        // it must be a concise 2-3 sentence elevator pitch, fully anonymized,
-        // free of transcript language, with financials as approximate ranges.
-        listingUpdate.hero_description = await buildHeroFromMemo(
-          anthropicApiKey,
-          teaserContent.sections,
-          deal,
-          supabaseAdmin,
-        );
-
+        // Run the description/HTML update synchronously — pure text, fast.
+        // hero_description generation is a separate Claude call and is the
+        // single biggest tail-latency contributor for this function. Run
+        // it in the background via EdgeRuntime.waitUntil so the client
+        // gets the teaser response back inside the 150s wall-clock budget
+        // even when Anthropic is slow, then the marketplace listing card
+        // picks up the hero once the background task finishes. If
+        // waitUntil isn't available (local Deno, test harness), we
+        // gracefully fall back to an awaited call.
         const { error: syncError } = await supabaseAdmin
           .from('listings')
-          .update(listingUpdate)
+          .update({
+            custom_sections: customSections,
+            description: unifiedDescription,
+            description_html: `<div class="unified-memo">${unifiedHtml}</div>`,
+          })
           .eq('id', marketplaceListing.id);
         if (syncError) {
           console.error('Failed to sync teaser sections to marketplace listing:', syncError);
+        }
+
+        // Race-condition guard: a second teaser generation started after
+        // this one can insert its own row while our hero task is still
+        // pending. Capture the memo_id we just wrote and check that it
+        // is still the newest draft for this deal at hero-write time —
+        // otherwise we would stomp a fresher hero with stale content.
+        const stampedMemoId = (teaser as { id?: string } | null)?.id ?? null;
+
+        const heroSyncTask = (async () => {
+          const heroStartedAt = Date.now();
+          try {
+            const hero = await buildHeroFromMemo(
+              anthropicApiKey,
+              teaserContent.sections,
+              deal,
+              supabaseAdmin,
+            );
+            if (!hero) return;
+
+            if (stampedMemoId) {
+              const { data: newest } = await supabaseAdmin
+                .from('lead_memos')
+                .select('id')
+                .eq('deal_id', deal_id)
+                .eq('memo_type', 'anonymous_teaser')
+                .eq('branding', branding)
+                .eq('status', 'draft')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (newest && (newest as { id?: string }).id !== stampedMemoId) {
+                console.warn(
+                  `[generate-lead-memo:hero-bg] Newer draft (${(newest as { id?: string }).id}) ` +
+                    `superseded ${stampedMemoId} during hero generation — skipping hero write.`,
+                );
+                return;
+              }
+            }
+
+            const { error: heroSyncError } = await supabaseAdmin
+              .from('listings')
+              .update({ hero_description: hero })
+              .eq('id', marketplaceListing.id);
+            if (heroSyncError) {
+              console.error(
+                'Failed to sync hero_description to marketplace listing:',
+                heroSyncError,
+              );
+            } else {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[generate-lead-memo:hero-bg] synced hero (${Date.now() - heroStartedAt}ms)`,
+              );
+            }
+          } catch (heroErr) {
+            console.error('Background hero generation failed:', heroErr);
+          }
+        })();
+
+        const edgeRuntime = (
+          globalThis as {
+            EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
+          }
+        ).EdgeRuntime;
+        if (typeof edgeRuntime?.waitUntil === 'function') {
+          edgeRuntime.waitUntil(heroSyncTask);
+        } else {
+          // Local / test environment without EdgeRuntime — await inline so
+          // the sync still happens, just at the cost of latency.
+          await heroSyncTask;
         }
       } else {
         console.warn(
@@ -475,6 +602,19 @@ Deno.serve(async (req: Request) => {
         resolvedProjectName,
         supabaseAdmin,
       );
+
+      // Same empty-content guard as the teaser branch — don't persist an
+      // empty full-memo draft.
+      if (
+        !fullContent ||
+        !Array.isArray((fullContent as { sections?: MemoSection[] }).sections) ||
+        (fullContent as { sections: MemoSection[] }).sections.length === 0
+      ) {
+        throw new Error(
+          'Full memo generation returned no parseable sections — AI output ' +
+            'was likely malformed. Retry in a few seconds.',
+        );
+      }
 
       // CTO audit: same dedup as the teaser above — delete prior DRAFT
       // rows for this deal+type+branding before inserting the new version.
@@ -526,6 +666,12 @@ Deno.serve(async (req: Request) => {
       console.error('Audit log failed (non-blocking):', auditError);
     }
 
+    logExit('success', {
+      deal_id,
+      memo_type,
+      memo_ids: Object.values(results).map((r) => (r as { id?: string } | undefined)?.id),
+    });
+
     return new Response(JSON.stringify({ success: true, memos: results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -538,11 +684,29 @@ Deno.serve(async (req: Request) => {
     const rawDetail =
       error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
     const sanitizedDetail = sanitizeClientErrorMessage(rawDetail);
+    // Duck-typed timeout detection: AbortSignal.timeout() raises a
+    // DOMException which does NOT uniformly inherit from Error across
+    // runtimes, so we key off the .name rather than `instanceof`. Covers
+    // both TimeoutError (AbortSignal.timeout) and AbortError (manual
+    // .abort()).
+    const errObj = error as { name?: string } | null;
+    const isTimeout = !!errObj && (errObj.name === 'TimeoutError' || errObj.name === 'AbortError');
+    logExit('error', {
+      error_class: error instanceof Error ? error.name : typeof error,
+      timeout: isTimeout,
+      raw_message_first_line: rawDetail.split('\n')[0].slice(0, 300),
+    });
     return new Response(
       JSON.stringify({
         error: `Failed to generate memo: ${sanitizedDetail}`,
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      {
+        // Surface 504 rather than 500 for timeout cases so the client's
+        // extractFunctionError can distinguish "try again with less data"
+        // from a true server bug.
+        status: isTimeout ? 504 : 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
     );
   }
 });
@@ -806,6 +970,10 @@ ${sectionText}
 Return ONLY the hero description text. No preamble, no quotes, no explanation.`;
 
   try {
+    // Cap hero generation at 30s — it's a small call (512 tokens) and runs
+    // after the main teaser/memo generate, so the wall-clock budget that
+    // remains is thin. If it overruns we fall back to the deterministic
+    // buildHeroFallback so the outer teaser save still succeeds.
     const response = await fetchWithAutoRetry(
       ANTHROPIC_API_URL,
       {
@@ -817,8 +985,9 @@ Return ONLY the hero description text. No preamble, no quotes, no explanation.`;
           temperature: 0.2,
           max_tokens: 512,
         }),
+        signal: AbortSignal.timeout(30_000),
       },
-      { callerName: 'generate-lead-memo:hero', maxRetries: 1 },
+      { callerName: 'generate-lead-memo:hero', maxRetries: 0 },
     );
 
     if (!response.ok) {
@@ -1517,10 +1686,15 @@ BLOCK 2 — INTERNAL ANALYST NOTES (never shared with investors):
 Wrap analyst notes between the markers ANALYST_NOTES_START and ANALYST_NOTES_END (each on its own line). Include a bulleted list of any data discrepancies, unverified figures, source conflicts, or missing data that would strengthen the memo. Reference the specific sources (e.g., "Call 2 states $5.2M revenue; enrichment shows $4.8M"). If FINANCIAL FOLLOW-UP QUESTIONS are provided in the data, incorporate each as a known data gap that should be resolved. If there are no discrepancies, write "None."`;
 
   // Regeneration loop: up to 3 retries for blocking validation failures
+  // See the matching comment in the anonymous_teaser branch for why the
+  // outer validation retry is capped at 2 and each fetch carries its own
+  // AbortSignal.timeout. Full memos tend to run longer than teasers
+  // because the prompt + max_tokens is larger, so the per-call cap is
+  // slightly higher (90s) than the teaser's 60s.
   let bestSections: MemoSection[] = [];
   let retryAppendix = '';
 
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     const promptToSend = retryAppendix ? `${userPrompt}\n\n${retryAppendix}` : userPrompt;
 
     const response = await fetchWithAutoRetry(
@@ -1535,8 +1709,9 @@ Wrap analyst notes between the markers ANALYST_NOTES_START and ANALYST_NOTES_END
           temperature: 0.2,
           max_tokens: 4096,
         }),
+        signal: AbortSignal.timeout(90_000),
       },
-      { callerName: 'generate-lead-memo-full', maxRetries: 2 },
+      { callerName: 'generate-lead-memo-full', maxRetries: 1 },
     );
 
     if (!response.ok) {
@@ -1891,11 +2066,18 @@ Return as markdown with ## headers. Must exactly match: BUSINESS OVERVIEW, DEAL 
 
 FINAL ANONYMITY CHECK: Before returning, re-read every sentence. Confirm no combination of details could identify the business.`;
 
-  // Regeneration loop: up to 3 retries for blocking validation failures
+  // Regeneration loop: bounded validation retries. The cap is 2 attempts
+  // (down from 4) because each Claude call can run 30-90s and Supabase
+  // edge functions have a 150s wall-clock limit — four attempts plus the
+  // downstream buildHeroFromMemo call reliably tripped the limit, and the
+  // client saw the platform's raw "non-2xx" error with no JSON body for
+  // extractFunctionError to unwrap. The per-call AbortSignal.timeout below
+  // caps each attempt individually so a single hung fetch can't swallow
+  // the entire budget.
   let bestSections: MemoSection[] = [];
   let retryAppendix = '';
 
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     const promptToSend = retryAppendix ? `${userPrompt}\n\n${retryAppendix}` : userPrompt;
 
     const response = await fetchWithAutoRetry(
@@ -1910,8 +2092,9 @@ FINAL ANONYMITY CHECK: Before returning, re-read every sentence. Confirm no comb
           temperature: 0.2,
           max_tokens: 4096,
         }),
+        signal: AbortSignal.timeout(60_000),
       },
-      { callerName: 'generate-lead-memo-teaser', maxRetries: 2 },
+      { callerName: 'generate-lead-memo-teaser', maxRetries: 1 },
     );
 
     if (!response.ok) {

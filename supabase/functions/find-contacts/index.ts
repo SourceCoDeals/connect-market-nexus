@@ -1512,9 +1512,12 @@ Deno.serve(async (req: Request) => {
       for (const c of allContacts) {
         // Route phone to mobile_phone_1 — enrichment providers (Blitz, Prospeo)
         // prioritize mobile/direct numbers, so this is a safe default.
-        const phoneSource = c.source === 'blitz' ? 'blitz'
-          : c.source === 'prospeo' ? 'prospeo'
-          : c.source || 'find_contacts';
+        const phoneSource =
+          c.source === 'blitz'
+            ? 'blitz'
+            : c.source === 'prospeo'
+              ? 'prospeo'
+              : c.source || 'find_contacts';
 
         const { error: rpcErr } = await supabaseAdmin.rpc('contacts_upsert', {
           p_identity: {
@@ -1535,14 +1538,28 @@ Deno.serve(async (req: Request) => {
           p_source: c.source || 'find_contacts',
           p_enrichment: {
             provider: c.source || 'find_contacts',
-            confidence: c.confidence || 'medium',
+            // Map provider confidence label to the canonical CHECK values
+            // ('verified'|'likely'|'guessed'|'unverified'). Passing 'high'
+            // / 'medium' / 'low' raw violated the CHECK constraint and the
+            // RPC silently swallowed the error, so every enrichment dropped
+            // on the floor.
+            confidence:
+              c.confidence === 'high'
+                ? 'verified'
+                : c.confidence === 'medium'
+                  ? 'likely'
+                  : c.confidence === 'low'
+                    ? 'guessed'
+                    : 'likely',
             source_query: `find_contacts:${companyName}`,
           },
         });
         if (rpcErr) saveErrors++;
       }
       if (saveErrors > 0) {
-        console.error(`[find-contacts] ${saveErrors}/${allContacts.length} contacts_upsert calls failed`);
+        console.error(
+          `[find-contacts] ${saveErrors}/${allContacts.length} contacts_upsert calls failed`,
+        );
         errors.push(`Save failed for ${saveErrors} contacts`);
       }
     }
