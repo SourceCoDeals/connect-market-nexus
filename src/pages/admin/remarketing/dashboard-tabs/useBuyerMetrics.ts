@@ -63,7 +63,12 @@ const BUYER_TYPE_LABELS: Record<string, string> = {
 };
 
 export function useBuyerMetrics() {
-  const { data: buyers, isLoading: buyersLoading } = useQuery({
+  const {
+    data: buyers,
+    isLoading: buyersLoading,
+    error: buyersError,
+    refetch: refetchBuyers,
+  } = useQuery({
     queryKey: ['buyers', 'all-active'],
     queryFn: async (): Promise<BuyerRow[]> => {
       const { data, error } = await (supabase as any)
@@ -76,7 +81,12 @@ export function useBuyerMetrics() {
     staleTime: 2 * 60_000,
   });
 
-  const { data: contactRows, isLoading: contactsLoading } = useQuery({
+  const {
+    data: contactRows,
+    isLoading: contactsLoading,
+    error: contactsError,
+    refetch: refetchContacts,
+  } = useQuery({
     queryKey: ['buyers', 'contact-counts'],
     queryFn: async (): Promise<ContactCountRow[]> => {
       // contacts table is the canonical source; remarketing_buyer_id is set
@@ -91,7 +101,11 @@ export function useBuyerMetrics() {
     staleTime: 2 * 60_000,
   });
 
-  const { data: firmAgreements } = useQuery({
+  const {
+    data: firmAgreements,
+    error: firmAgreementsError,
+    refetch: refetchFirmAgreements,
+  } = useQuery({
     queryKey: ['buyers', 'firm-agreements'],
     queryFn: async (): Promise<FirmAgreementRow[]> => {
       const { data, error } = await (supabase as any)
@@ -197,8 +211,17 @@ export function useBuyerMetrics() {
     buyersWithMultipleContacts,
   };
 
+  const error = (buyersError || contactsError || firmAgreementsError) as Error | null | undefined;
+  const retry = () => {
+    refetchBuyers();
+    refetchContacts();
+    refetchFirmAgreements();
+  };
+
   return {
     loading: buyersLoading || contactsLoading,
+    error: error || null,
+    retry,
     kpis,
     contactsHistogram,
     growthSeries,

@@ -105,7 +105,12 @@ export function useOutreachMetrics(timeframe: Timeframe) {
   // Single query covers all smartlead_messages in the period — sent, opened,
   // and replied events all come through one round-trip. In-memory filtering
   // splits them for the KPI and per-campaign aggregations below.
-  const { data: smartleadRows, isLoading: smartleadLoading } = useQuery({
+  const {
+    data: smartleadRows,
+    isLoading: smartleadLoading,
+    error: smartleadError,
+    refetch: refetchSmartlead,
+  } = useQuery({
     queryKey: ['outreach', 'smartlead', fromDate],
     queryFn: async (): Promise<SmartleadRow[]> => {
       let q = (supabase as any)
@@ -119,7 +124,12 @@ export function useOutreachMetrics(timeframe: Timeframe) {
     staleTime: 60_000,
   });
 
-  const { data: heyreachRows, isLoading: heyreachLoading } = useQuery({
+  const {
+    data: heyreachRows,
+    isLoading: heyreachLoading,
+    error: heyreachError,
+    refetch: refetchHeyreach,
+  } = useQuery({
     queryKey: ['outreach', 'heyreach', fromDate],
     queryFn: async (): Promise<HeyreachRow[]> => {
       let q = (supabase as any)
@@ -133,7 +143,12 @@ export function useOutreachMetrics(timeframe: Timeframe) {
     staleTime: 60_000,
   });
 
-  const { data: callRows, isLoading: callsLoading } = useQuery({
+  const {
+    data: callRows,
+    isLoading: callsLoading,
+    error: callsError,
+    refetch: refetchCalls,
+  } = useQuery({
     queryKey: ['outreach', 'calls', fromDate],
     queryFn: async () => {
       let q = (supabase as any)
@@ -326,8 +341,17 @@ export function useOutreachMetrics(timeframe: Timeframe) {
       .sort((a, b) => b.count - a.count);
   })();
 
+  const error = (smartleadError || heyreachError || callsError) as Error | null | undefined;
+  const retry = () => {
+    refetchSmartlead();
+    refetchHeyreach();
+    refetchCalls();
+  };
+
   return {
     loading: smartleadLoading || heyreachLoading || callsLoading,
+    error: error || null,
+    retry,
     kpis,
     smartleadCampaigns: slCampaignRows,
     heyreachCampaigns: hrCampaignRows,

@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { UserPlus, Calendar, Clock, Target } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useIntrosMetrics } from './useIntrosMetrics';
+import { DashboardErrorBanner } from './DashboardErrorBanner';
 import type { Timeframe } from '../useDashboardData';
 
 interface IntrosTabProps {
@@ -41,7 +42,7 @@ function formatDuration(minutes: number): string {
 }
 
 export function IntrosTab({ timeframe }: IntrosTabProps) {
-  const { loading, kpis, statusBreakdown, weeklyTrend, recentMeetings } =
+  const { loading, error, retry, kpis, statusBreakdown, weeklyTrend, recentMeetings } =
     useIntrosMetrics(timeframe);
 
   const totalStatuses = statusBreakdown.reduce((s, v) => s + v.count, 0) || 1;
@@ -49,8 +50,15 @@ export function IntrosTab({ timeframe }: IntrosTabProps) {
 
   return (
     <div className="space-y-5">
+      {error && (
+        <DashboardErrorBanner
+          title="Couldn't load Introductions data"
+          error={error}
+          onRetry={retry}
+        />
+      )}
       {/* KPI Row */}
-      {loading ? (
+      {loading && !error ? (
         <div className="grid gap-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />

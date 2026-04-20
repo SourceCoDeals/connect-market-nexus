@@ -7,6 +7,7 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, TrendingUp, FileCheck, AlertCircle } from 'lucide-react';
 import { useBuyerMetrics } from './useBuyerMetrics';
+import { DashboardErrorBanner } from './DashboardErrorBanner';
 
 const BUYER_TYPE_COLORS: Record<string, string> = {
   private_equity: '#2563eb',
@@ -28,7 +29,7 @@ function formatInt(n: number): string {
 }
 
 export function BuyersTab() {
-  const { loading, kpis, contactsHistogram, growthSeries, buyersWithNoContacts } =
+  const { loading, error, retry, kpis, contactsHistogram, growthSeries, buyersWithNoContacts } =
     useBuyerMetrics();
 
   const maxHistCount = Math.max(...contactsHistogram.map((b) => b.count), 1);
@@ -36,8 +37,11 @@ export function BuyersTab() {
 
   return (
     <div className="space-y-5">
+      {error && (
+        <DashboardErrorBanner title="Couldn't load Buyers data" error={error} onRetry={retry} />
+      )}
       {/* KPI Row */}
-      {loading ? (
+      {loading && !error ? (
         <div className="grid gap-3 md:grid-cols-5">
           {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />

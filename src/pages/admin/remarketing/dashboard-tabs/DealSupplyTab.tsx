@@ -23,6 +23,7 @@ import {
   SOURCE_LABELS,
   type Timeframe,
 } from '../useDashboardData';
+import { DashboardErrorBanner } from './DashboardErrorBanner';
 
 interface DealSupplyTabProps {
   timeframe: Timeframe;
@@ -32,6 +33,8 @@ export function DealSupplyTab({ timeframe }: DealSupplyTabProps) {
   const {
     loading,
     universesLoading,
+    statsError,
+    refetchStats,
     cards,
     newBySource,
     allBySource,
@@ -44,6 +47,7 @@ export function DealSupplyTab({ timeframe }: DealSupplyTabProps) {
     universeMetrics,
     callActivity,
     callActivityLoading,
+    callActivityError,
   } = useDashboardData(timeframe);
 
   const formatTalkTime = (seconds: number) => {
@@ -56,8 +60,24 @@ export function DealSupplyTab({ timeframe }: DealSupplyTabProps) {
 
   return (
     <div className="space-y-5">
+      {/* Surface stats RPC failure — without this, all the `cards && (...)`
+          conditionals below render nothing and the tab appears blank. */}
+      {statsError && (
+        <DashboardErrorBanner
+          title="Couldn't load Deal Supply stats"
+          error={statsError}
+          onRetry={() => refetchStats()}
+        />
+      )}
+
+      {/* Call-activity errors surface separately because they come from a
+          different query (contact_activities scan, not the stats RPC). */}
+      {callActivityError && (
+        <DashboardErrorBanner title="Couldn't load call activity" error={callActivityError} />
+      )}
+
       {/* KPI Row — 4 cards */}
-      {loading ? (
+      {loading && !statsError ? (
         <div className="grid gap-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />

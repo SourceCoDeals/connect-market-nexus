@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, AlertCircle, Users, UserX } from 'lucide-react';
 import { useTeamMetrics, type TeamRow } from './useTeamMetrics';
+import { DashboardErrorBanner } from './DashboardErrorBanner';
 import type { Timeframe } from '../useDashboardData';
 
 interface TeamTabProps {
@@ -27,7 +28,7 @@ function formatInt(n: number): string {
 }
 
 export function TeamTab({ timeframe }: TeamTabProps) {
-  const { loading, kpis, teamRows } = useTeamMetrics(timeframe);
+  const { loading, error, retry, kpis, teamRows } = useTeamMetrics(timeframe);
   const [sortBy, setSortBy] = useState<SortKey>('calls');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -48,8 +49,11 @@ export function TeamTab({ timeframe }: TeamTabProps) {
 
   return (
     <div className="space-y-5">
+      {error && (
+        <DashboardErrorBanner title="Couldn't load Team data" error={error} onRetry={retry} />
+      )}
       {/* KPI Row */}
-      {loading ? (
+      {loading && !error ? (
         <div className="grid gap-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />

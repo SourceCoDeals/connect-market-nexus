@@ -135,7 +135,11 @@ function resolveSenderProfile(
 export function useTeamMetrics(timeframe: Timeframe) {
   const fromDate = getFromDate(timeframe);
 
-  const { data: profiles } = useQuery({
+  const {
+    data: profiles,
+    error: profilesError,
+    refetch: refetchProfiles,
+  } = useQuery({
     queryKey: ['team', 'admin-profiles'],
     queryFn: async (): Promise<ProfileRow[]> => {
       const { data, error } = await (supabase as any)
@@ -148,7 +152,12 @@ export function useTeamMetrics(timeframe: Timeframe) {
     staleTime: 5 * 60_000,
   });
 
-  const { data: calls, isLoading: callsLoading } = useQuery({
+  const {
+    data: calls,
+    isLoading: callsLoading,
+    error: callsError,
+    refetch: refetchCalls,
+  } = useQuery({
     queryKey: ['team', 'calls', fromDate],
     queryFn: async (): Promise<CallRow[]> => {
       let q = (supabase as any)
@@ -163,7 +172,11 @@ export function useTeamMetrics(timeframe: Timeframe) {
     staleTime: 60_000,
   });
 
-  const { data: emails } = useQuery({
+  const {
+    data: emails,
+    error: emailsError,
+    refetch: refetchEmails,
+  } = useQuery({
     queryKey: ['team', 'emails', fromDate],
     queryFn: async (): Promise<EmailRow[]> => {
       let q = (supabase as any)
@@ -179,7 +192,12 @@ export function useTeamMetrics(timeframe: Timeframe) {
     staleTime: 60_000,
   });
 
-  const { data: tasks, isLoading: tasksLoading } = useQuery({
+  const {
+    data: tasks,
+    isLoading: tasksLoading,
+    error: tasksError,
+    refetch: refetchTasks,
+  } = useQuery({
     queryKey: ['team', 'tasks', fromDate],
     queryFn: async (): Promise<TaskRow[]> => {
       // Fetch in two slices so we can scope by date at the DB level without
@@ -229,7 +247,11 @@ export function useTeamMetrics(timeframe: Timeframe) {
     staleTime: 60_000,
   });
 
-  const { data: assignments } = useQuery({
+  const {
+    data: assignments,
+    error: assignmentsError,
+    refetch: refetchAssignments,
+  } = useQuery({
     queryKey: ['team', 'deal-assignments'],
     queryFn: async (): Promise<PipelineAssignmentRow[]> => {
       const { data, error } = await (supabase as any)
@@ -357,8 +379,22 @@ export function useTeamMetrics(timeframe: Timeframe) {
         b.calls + b.tasksCompleted + b.emailsSent - (a.calls + a.tasksCompleted + a.emailsSent),
     );
 
+  const error = (profilesError || callsError || emailsError || tasksError || assignmentsError) as
+    | Error
+    | null
+    | undefined;
+  const retry = () => {
+    refetchProfiles();
+    refetchCalls();
+    refetchEmails();
+    refetchTasks();
+    refetchAssignments();
+  };
+
   return {
     loading: callsLoading || tasksLoading,
+    error: error || null,
+    retry,
     kpis,
     teamRows,
   };
