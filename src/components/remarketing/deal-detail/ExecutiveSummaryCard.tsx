@@ -35,8 +35,7 @@ export const ExecutiveSummaryCard = ({
       setIsEditOpen(false);
       toast.success('Executive summary updated');
     } catch (error) {
-      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
-      toast.error(`Failed to save summary: ${message}`);
+      toast.error('Failed to save summary');
     } finally {
       setIsSaving(false);
     }

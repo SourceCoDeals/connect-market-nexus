@@ -131,104 +131,6 @@ export function useDealDetail() {
     },
   });
 
-  // Primary seller contact — source of truth for structured phone fields
-  // (mobile_phone_1/2/3). listings.main_contact_phone only holds a single
-  // number, so the "+ Add Phone Number" UI needs the contact row to
-  // persist additional phones. The filter intentionally doesn't require
-  // is_primary_seller_contact=true because the listing-sync trigger's
-  // ON CONFLICT DO NOTHING can leave a pre-existing seller contact
-  // un-flagged — save_primary_seller_contact() corrects the flag on write,
-  // so reads need to tolerate both states to avoid showing an empty form
-  // on the first open. Column selection is cast because the generated
-  // supabase types don't yet include the structured-phone columns added
-  // in 20260701000020_structured_phone_fields.sql.
-  const { data: primarySellerContact } = useQuery({
-    queryKey: ['remarketing', 'primary-seller-contact', dealId],
-    queryFn: async (): Promise<{
-      id: string;
-      mobile_phone_1: string | null;
-      mobile_phone_2: string | null;
-      mobile_phone_3: string | null;
-    } | null> => {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('id, mobile_phone_1, mobile_phone_2, mobile_phone_3')
-        .eq('listing_id', dealId!)
-        .eq('contact_type', 'seller')
-        .eq('archived', false)
-        .order('is_primary_seller_contact', { ascending: false })
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return null;
-      const row = data as unknown as {
-        id: string;
-        mobile_phone_1: string | null;
-        mobile_phone_2: string | null;
-        mobile_phone_3: string | null;
-      };
-      return {
-        id: row.id,
-        mobile_phone_1: row.mobile_phone_1 ?? null,
-        mobile_phone_2: row.mobile_phone_2 ?? null,
-        mobile_phone_3: row.mobile_phone_3 ?? null,
-      };
-    },
-    enabled: !!dealId,
-  });
-
-  // Save primary contact — updates the listing's main_contact_* fields and
-  // then atomically upserts the seller contact row via the
-  // save_primary_seller_contact RPC. The RPC handles three failure modes
-  // that the previous direct-UPDATE path hit:
-  //   1. Pre-existing seller contacts with is_primary_seller_contact=false
-  //      (sync trigger's ON CONFLICT DO NOTHING never flipped the flag).
-  //   2. Direct UPDATE on contacts is REVOKEd for the authenticated role
-  //      (see 20260625000008) — the RPC is SECURITY DEFINER.
-  //   3. Missing contact rows when the listing had no main_contact_name at
-  //      the time the trigger first fired — the RPC creates one.
-  // Passing '' for a phone clears it; omitting (null) keeps the existing value.
-  const savePrimaryContactMutation = useMutation({
-    mutationFn: async (data: {
-      name: string;
-      email: string;
-      phone: string;
-      additionalPhones?: string[];
-    }) => {
-      const { error: listingError } = await supabase
-        .from('listings')
-        .update({
-          main_contact_name: data.name,
-          main_contact_email: data.email,
-          main_contact_phone: data.phone,
-        })
-        .eq('id', dealId!);
-      if (listingError) throw listingError;
-
-      // Normalize additional phones — trim each slot but preserve position so
-      // an empty slot becomes '' (explicit clear) rather than shifting left.
-      const additional = (data.additionalPhones ?? []).map((p) => p.trim());
-
-      const { error: rpcError } = await (supabase.rpc as any)('save_primary_seller_contact', {
-        p_listing_id: dealId!,
-        p_name: data.name,
-        p_email: data.email,
-        p_phone: data.phone,
-        p_mobile_phone_2: additional[0] ?? '',
-        p_mobile_phone_3: additional[1] ?? '',
-      });
-      if (rpcError) throw rpcError;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      queryClient.invalidateQueries({
-        queryKey: ['remarketing', 'primary-seller-contact', dealId],
-      });
-    },
-  });
-
   // Toggle universe build flag
   const toggleUniverseFlagMutation = useMutation({
     mutationFn: async (flagged: boolean) => {
@@ -408,13 +310,10 @@ export function useDealDetail() {
     dealOwnerName,
     // Mutations
     updateDealMutation,
-    savePrimaryContactMutation,
     toggleUniverseFlagMutation,
     toggleContactOwnerMutation,
     toggleBuyerSearchMutation,
     updateNameMutation,
-    // Primary seller contact (mobile_phone_2/3 source for the "+ Add Phone Number" UI)
-    primarySellerContact,
     // UI state
     isEnriching,
     isAnalyzingNotes,

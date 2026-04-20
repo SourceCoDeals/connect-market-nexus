@@ -281,7 +281,7 @@ export function usePartnerActions(
     if (!ids.length) return;
     const { error } = await supabase.rpc('archive_listings_bulk', {
       p_listing_ids: ids,
-      p_reason: reason ?? null,
+      p_reason: reason ?? undefined,
     });
     if (error) toast.error('Failed to archive deals');
     else {

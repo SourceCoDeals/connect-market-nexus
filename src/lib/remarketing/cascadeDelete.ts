@@ -19,25 +19,12 @@ export async function deleteUniverseWithRelated(
     if (buyers && buyers.length > 0) {
       const buyerIds = buyers.map((b) => b.id);
 
-      // Archive contacts linked to these buyers via the soft-delete RPC.
-      // Direct .update({archived:true}) is REVOKEd for authenticated
-      // since 20260625000008, so we first fetch the candidate ids and
-      // call contacts_soft_delete per id. The N+1 cost is acceptable
-      // here because universe cascades are admin-initiated and rare.
-      const { data: contactRows, error: contactsFetchError } = await supabase
+      // Archive contacts linked to these buyers in the unified contacts table
+      const { error: contactsError } = await supabase
         .from('contacts')
-        .select('id')
-        .in('remarketing_buyer_id', buyerIds)
-        .eq('archived', false);
-      if (contactsFetchError) throw contactsFetchError;
-      if (contactRows && contactRows.length > 0) {
-        await Promise.all(
-          contactRows.map((r) =>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (supabase.rpc as any)('contacts_soft_delete', { p_contact_id: r.id }),
-          ),
-        );
-      }
+        .update({ archived: true })
+        .in('remarketing_buyer_id', buyerIds);
+      if (contactsError) throw contactsError;
 
       // Delete buyer_transcripts
       const { error: transcriptsError } = await supabase

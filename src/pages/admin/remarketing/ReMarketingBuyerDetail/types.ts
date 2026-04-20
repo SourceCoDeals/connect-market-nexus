@@ -62,14 +62,6 @@ export interface Contact {
   mobile_phone_3: string | null;
   office_phone: string | null;
   phone_source: string | null;
-  /**
-   * Provenance of the contact record. `'manual'` is the default for user-
-   * created entries. Phase 3 auto-contact discovery writes
-   * `'outlook_auto_detected'` or `'smartlead_auto_detected'` when a contact
-   * is created from an inbound email at a known firm domain — the UI uses
-   * this to flag the contact for review/enrichment.
-   */
-  source: string | null;
 }
 
 export interface Transcript {

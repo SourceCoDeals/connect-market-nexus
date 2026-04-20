@@ -50,8 +50,7 @@ export const KeyQuotesCard = ({ quotes, onSave }: KeyQuotesCardProps) => {
       setIsEditOpen(false);
       toast.success('Quotes updated');
     } catch (error) {
-      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
-      toast.error(`Failed to save quotes: ${message}`);
+      toast.error('Failed to save quotes');
     } finally {
       setIsSaving(false);
     }

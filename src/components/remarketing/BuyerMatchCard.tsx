@@ -105,16 +105,6 @@ interface BuyerMatchCardProps {
   isPending?: boolean;
   universeName?: string; // Show universe badge when viewing "All Universes"
   firmFeeAgreement?: { signed: boolean; signedAt: string | null };
-  /**
-   * Phase 5b: total firm-wide touchpoint count (emails + calls + LinkedIn
-   * + meetings) across every contact at the buyer's firm domains and the
-   * buyer id. Sourced from get_firm_touchpoint_counts. When > 0 the card
-   * renders a small badge so operators see firm-wide engagement at a
-   * glance instead of having to drill into the detail page.
-   */
-  firmTouchpointCount?: number;
-  /** Number of firm_domain_aliases entries that fed firmTouchpointCount. */
-  firmDomainCount?: number;
   pipelineDealId?: string | null; // If set, buyer already has a deal in the pipeline
   listingId?: string; // The listing this score is for
 }
@@ -158,8 +148,6 @@ export const BuyerMatchCard = ({
   isPending = false,
   universeName,
   firmFeeAgreement,
-  firmTouchpointCount,
-  firmDomainCount,
   pipelineDealId,
   listingId,
 }: BuyerMatchCardProps) => {
@@ -338,32 +326,6 @@ export const BuyerMatchCard = ({
                   <FileText className="h-3 w-3 mr-1" />
                   No Fee
                 </Badge>
-              )}
-
-              {/* Firm touchpoints badge — phase 5b. Surfaces firm-wide
-                  engagement on the card so operators prioritize buyers
-                  whose firms have prior activity, even when that activity
-                  was with someone other than the contact on this row. */}
-              {firmTouchpointCount !== undefined && firmTouchpointCount > 0 && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
-                      >
-                        <Globe className="h-3 w-3 mr-1" />
-                        {firmTouchpointCount} firm touchpoint
-                        {firmTouchpointCount === 1 ? '' : 's'}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {`Activity count across ${firmDomainCount ?? 0} firm domain${
-                        (firmDomainCount ?? 0) === 1 ? '' : 's'
-                      } — emails, calls, LinkedIn, and meetings with anyone at the firm.`}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               )}
             </div>
 

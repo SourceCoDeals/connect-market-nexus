@@ -8,18 +8,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Activity,
   ArrowLeft,
   BarChart2,
-  ChevronDown,
   Clock,
   FileSignature,
   FolderOpen,
   ListChecks,
   Mail,
+  Phone,
+  PhoneCall,
   Users,
   Video,
 } from 'lucide-react';
@@ -47,13 +46,11 @@ import { useBuyerData } from './useBuyerData';
 import { useBuyerMutations } from './useBuyerMutations';
 import { useExtractionHandlers } from './useExtractionHandlers';
 import { ContactsTab } from './ContactsTab';
-import { DomainAliasPanel } from '@/components/admin/DomainAliasPanel';
 import { DealHistoryTab } from './DealHistoryTab';
 import { AddContactDialog } from './AddContactDialog';
 import { BuyerEngagementSummary } from '@/components/remarketing/buyer-detail/BuyerEngagementSummary';
 import { BuyerActiveDealsSummary } from '@/components/remarketing/buyer-detail/BuyerActiveDealsSummary';
-import { useContactCombinedHistoryByDomain } from '@/hooks/use-contact-combined-history';
-import { useFirmDomainAliases } from '@/hooks/admin/use-firm-agreement-queries';
+import { useContactCombinedHistory } from '@/hooks/use-contact-combined-history';
 import { EditDialogs } from './EditDialogs';
 import { CallActivityTab } from './CallActivityTab';
 import { EmailHistoryTab } from '@/components/email';
@@ -122,17 +119,7 @@ const ReMarketingBuyerDetail = () => {
   } = useExtractionHandlers(transcripts, extractTranscriptMutation);
 
   const { data: transcriptCriteria } = useBuyerCriteriaFromTranscripts(buyer?.id);
-  // Phase 4: firm-wide engagement. Fetch the firm's domain aliases (via
-  // firm_domain_aliases) and pass them to the domain-aware history hook so
-  // the engagement summary reflects every touchpoint across everyone at the
-  // firm — not just activity logged against this one buyer row. Falls back
-  // to buyer-id-only behavior when no firm is linked or no aliases exist.
-  const { data: firmAliases = [] } = useFirmDomainAliases(buyer?.marketplace_firm_id || null);
-  const firmDomainList = firmAliases.map((a) => a.domain);
-  const { data: combinedHistory = [] } = useContactCombinedHistoryByDomain({
-    buyerId: buyer?.id || null,
-    domains: firmDomainList.length > 0 ? firmDomainList : null,
-  });
+  const { data: combinedHistory = [] } = useContactCombinedHistory(buyer?.id || null);
 
   if (!isNew && isLoading) {
     return (
@@ -253,9 +240,7 @@ const ReMarketingBuyerDetail = () => {
       {buyer?.id && <BuyerActiveDealsSummary buyerId={buyer.id} />}
 
       {/* Engagement Summary */}
-      {combinedHistory.length > 0 && (
-        <BuyerEngagementSummary entries={combinedHistory} firmDomainCount={firmDomainList.length} />
-      )}
+      {combinedHistory.length > 0 && <BuyerEngagementSummary entries={combinedHistory} />}
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="intelligence" className="space-y-4">
@@ -264,9 +249,13 @@ const ReMarketingBuyerDetail = () => {
             <BarChart2 className="mr-1.5 h-3.5 w-3.5" />
             Intelligence
           </TabsTrigger>
-          <TabsTrigger value="activity" className="text-sm">
-            <Activity className="mr-1.5 h-3.5 w-3.5" />
-            Activity
+          <TabsTrigger value="call-history" className="text-sm">
+            <Phone className="mr-1.5 h-3.5 w-3.5" />
+            Call History
+          </TabsTrigger>
+          <TabsTrigger value="call-activity" className="text-sm">
+            <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
+            Call Activity
           </TabsTrigger>
           <TabsTrigger value="history" className="text-sm">
             <Clock className="mr-1.5 h-3.5 w-3.5" />
@@ -405,44 +394,37 @@ const ReMarketingBuyerDetail = () => {
           />
         </TabsContent>
 
-        {/* Activity Tab — unified outreach across Outlook, SmartLead, HeyReach, PhoneBurner, Fireflies */}
-        <TabsContent value="activity" className="space-y-4">
+        {/* Call History Tab */}
+        <TabsContent value="call-history" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Find Call Transcripts</CardTitle>
+              <CardDescription>
+                Search your Fireflies call history to link relevant conversations with this buyer
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FirefliesTranscriptSearch
+                buyerId={buyer?.id || ''}
+                companyName={buyer?.company_name || buyer?.pe_firm_name || ''}
+                peFirmName={buyer?.pe_firm_name}
+                platformWebsite={buyer?.platform_website || buyer?.company_website}
+                contacts={
+                  contacts
+                    ?.map((c: Contact) => ({ email: c.email! }))
+                    .filter((c): c is { email: string } => !!c.email) || []
+                }
+                onTranscriptLinked={() => {
+                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
+                }}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Call Activity Tab (PhoneBurner) */}
+        <TabsContent value="call-activity" className="space-y-4">
           <CallActivityTab buyerId={buyer?.id || ''} />
-          <Collapsible>
-            <Card>
-              <CollapsibleTrigger className="w-full">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                  <div className="text-left">
-                    <CardTitle className="text-base">Link Fireflies Transcripts</CardTitle>
-                    <CardDescription>
-                      Search Fireflies call history and link relevant conversations to this buyer
-                    </CardDescription>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent>
-                  <FirefliesTranscriptSearch
-                    buyerId={buyer?.id || ''}
-                    companyName={buyer?.company_name || buyer?.pe_firm_name || ''}
-                    peFirmName={buyer?.pe_firm_name}
-                    platformWebsite={buyer?.platform_website || buyer?.company_website}
-                    contacts={
-                      contacts
-                        ?.map((c: Contact) => ({ email: c.email! }))
-                        .filter((c): c is { email: string } => !!c.email) || []
-                    }
-                    onTranscriptLinked={() => {
-                      queryClient.invalidateQueries({
-                        queryKey: ['remarketing', 'transcripts', id],
-                      });
-                    }}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
         </TabsContent>
 
         {/* Deal History Tab */}
@@ -462,7 +444,7 @@ const ReMarketingBuyerDetail = () => {
         </TabsContent>
 
         {/* Contacts Tab */}
-        <TabsContent value="contacts" className="space-y-4">
+        <TabsContent value="contacts">
           <ContactsTab
             contacts={contacts}
             onAddContact={() => setIsContactDialogOpen(true)}
@@ -493,7 +475,6 @@ const ReMarketingBuyerDetail = () => {
             }}
             isRetryingPhoneEnrichment={retryPhoneEnrichmentMutation.isPending}
           />
-          <DomainAliasPanel firmId={buyer?.marketplace_firm_id || null} />
         </TabsContent>
 
         {/* Agreements Tab */}

@@ -86,7 +86,7 @@ export function useBuyerMutations(
         }
 
         if (firmId) {
-          await supabase.rpc('update_fee_agreement_firm_status', {
+          await (supabase as any).rpc('update_fee_agreement_firm_status', {
             p_firm_id: firmId,
             p_is_signed: true,
             p_signed_by_user_id: undefined,
@@ -234,14 +234,8 @@ export function useBuyerMutations(
         office_phone: '',
       });
     },
-    onError: (error: Error) => {
-      // Surface the actual RPC error so broken writes (NOT NULL violations,
-      // permission errors, unique-index conflicts, etc.) stop hiding behind
-      // a generic "Failed to add contact" toast. Same pattern the
-      // PrimaryContactCard save path adopted in 79e1b19 after the silent
-      // "Failed to save" bug concealed three compounding issues for weeks.
-      const message = error?.message?.trim() || 'Failed to add contact';
-      toast.error(`Failed to add contact: ${message}`);
+    onError: () => {
+      toast.error('Failed to add contact');
     },
   });
 
@@ -262,10 +256,6 @@ export function useBuyerMutations(
       const firstName = nameParts[0] || 'Unknown';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      // Pass '' (not null) when a phone field is empty so update_buyer_contact's
-      // CASE WHEN IS NOT NULL branch runs its NULLIF(TRIM, '') → NULL step and
-      // actually clears the column. `|| null` collapsed '' to null, which the
-      // RPC interprets as "don't touch" and kept the previous value forever.
       const { error } = await (supabase.rpc as any)('update_buyer_contact', {
         p_contact_id: contact.id,
         p_first_name: firstName,
@@ -274,10 +264,10 @@ export function useBuyerMutations(
         p_phone: contact.mobile_phone_1 || contact.phone || null,
         p_title: contact.role || null,
         p_linkedin_url: contact.linkedin_url || null,
-        p_mobile_phone_1: contact.mobile_phone_1 ?? '',
-        p_mobile_phone_2: contact.mobile_phone_2 ?? '',
-        p_mobile_phone_3: contact.mobile_phone_3 ?? '',
-        p_office_phone: contact.office_phone ?? '',
+        p_mobile_phone_1: contact.mobile_phone_1 || null,
+        p_mobile_phone_2: contact.mobile_phone_2 || null,
+        p_mobile_phone_3: contact.mobile_phone_3 || null,
+        p_office_phone: contact.office_phone || null,
         p_phone_source: 'manual',
       });
       if (error) throw error;
@@ -286,33 +276,26 @@ export function useBuyerMutations(
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
       toast.success('Contact updated');
     },
-    onError: (error: Error) => {
-      const message = error?.message?.trim() || 'Failed to update contact';
-      toast.error(`Failed to update contact: ${message}`);
+    onError: () => {
+      toast.error('Failed to update contact');
     },
   });
 
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
-      // Soft-delete via the contacts_soft_delete RPC. Direct
-      // .update({archived:true}) silently fails for authenticated users
-      // after 20260625000008 revoked INSERT/UPDATE on contacts — the RPC
-      // is SECURITY DEFINER so it bypasses the REVOKE, and it also
-      // stamps deleted_at=now() so the row disappears from the LinkedIn
-      // unique index (otherwise re-adding the same person later hits a
-      // duplicate-key error).
-      const { error } = await (supabase.rpc as any)('contacts_soft_delete', {
-        p_contact_id: contactId,
-      });
+      // Soft-delete by archiving instead of hard delete
+      const { error } = await supabase
+        .from('contacts')
+        .update({ archived: true, updated_at: new Date().toISOString() })
+        .eq('id', contactId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
       toast.success('Contact deleted');
     },
-    onError: (error: Error) => {
-      const message = error?.message?.trim() || 'Failed to delete contact';
-      toast.error(`Failed to delete contact: ${message}`);
+    onError: () => {
+      toast.error('Failed to delete contact');
     },
   });
 

@@ -70,9 +70,8 @@ export const AdditionalInfoCard = ({
       });
       setIsEditOpen(false);
       toast.success('Additional information updated');
-    } catch (error) {
-      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
-      toast.error(`Failed to save: ${message}`);
+    } catch {
+      toast.error('Failed to save');
     } finally {
       setIsSaving(false);
     }

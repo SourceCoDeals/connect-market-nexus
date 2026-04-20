@@ -22,9 +22,8 @@ export const OwnerResponseSection = ({ ownerResponse, onSave }: OwnerResponseSec
     try {
       await onSave(editedResponse);
       toast.success('Owner response saved');
-    } catch (error) {
-      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
-      toast.error(`Failed to save owner response: ${message}`);
+    } catch {
+      toast.error('Failed to save owner response');
     } finally {
       setIsSaving(false);
     }

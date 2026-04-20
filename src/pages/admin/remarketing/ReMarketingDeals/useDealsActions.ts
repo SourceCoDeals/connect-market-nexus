@@ -206,12 +206,9 @@ export function useDealsActions({
 
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const handleArchiveDeal = useCallback(
-    (dealId: string, dealName: string) => {
-      setArchiveTarget({ id: dealId, name: dealName });
-    },
-    [],
-  );
+  const handleArchiveDeal = useCallback((dealId: string, dealName: string) => {
+    setArchiveTarget({ id: dealId, name: dealName });
+  }, []);
 
   const confirmArchiveDeal = useCallback(
     async (reason: string) => {
@@ -497,7 +494,7 @@ export function useDealsActions({
       const ids = Array.from(selectedDeals);
       const { error } = await supabase.rpc('archive_listings_bulk', {
         p_listing_ids: ids,
-        p_reason: null,
+        p_reason: undefined,
       });
       if (error) throw error;
       toast({ title: 'Deals archived', description: `${ids.length} deal(s) have been archived` });

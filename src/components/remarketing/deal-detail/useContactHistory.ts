@@ -12,7 +12,6 @@ import { subDays } from 'date-fns';
 import {
   useContactCombinedHistory,
   useContactCombinedHistoryByEmail,
-  useContactCombinedHistoryByDomain,
   type UnifiedActivityEntry,
 } from '@/hooks/use-contact-combined-history';
 import { computeActivityStats } from '@/hooks/use-activity-stats';
@@ -36,24 +35,7 @@ export interface ContactTab {
   label: string;
   email?: string | null;
   buyerId?: string | null;
-  type: 'primary' | 'buyer' | 'seller' | 'discovered';
-}
-
-/**
- * Turn an email local part into a human-readable label.
- * `sarah.jones@acme.com` → "Sarah Jones", `analyst@acme.com` → "Analyst".
- * Falls back to the full email if the local part is empty or all punctuation.
- */
-function prettifyDiscoveredEmail(email: string): string {
-  const at = email.indexOf('@');
-  if (at <= 0) return email;
-  const local = email.slice(0, at);
-  const parts = local
-    .split(/[._-]+/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-  if (parts.length === 0) return email;
-  return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
+  type: 'primary' | 'buyer' | 'seller';
 }
 
 // ── Helpers ──
@@ -97,7 +79,6 @@ export function useContactHistory(
   primaryContactEmail: string | null | undefined,
   dateRange: DateRangeValue,
   primaryContactName?: string | null,
-  firmDomains?: string[] | null,
 ) {
   // Fetch associated buyers for this deal
   const { data: associatedBuyers = [], isLoading: buyersLoading } = useQuery({
@@ -170,43 +151,15 @@ export function useContactHistory(
   const lookupEmail =
     primaryContactEmail || associatedBuyers.find((b) => b.contactEmail)?.contactEmail || null;
 
-  // Normalize firm domains once so the query key is stable. When domains are
-  // provided we prefer the domain-aware RPC path because it captures every
-  // touchpoint with anyone at the firm — not just the primary contact.
-  const normalizedFirmDomains = useMemo(
-    () =>
-      (firmDomains ?? [])
-        .map((d) => d?.trim().toLowerCase())
-        .filter((d): d is string => !!d && d.length > 0),
-    [firmDomains],
-  );
-  const hasFirmDomains = normalizedFirmDomains.length > 0;
-
-  // Three history paths, ordered by preference. Domain-aware wins when
-  // aliases exist, falling back to buyer-id and email-ilike queries so
-  // existing callers keep working when no firmDomains are wired in.
-  const { data: entriesByDomain = [], isLoading: historyByDomainLoading } =
-    useContactCombinedHistoryByDomain({
-      buyerId: hasFirmDomains ? primaryBuyerId : null,
-      domains: hasFirmDomains ? normalizedFirmDomains : null,
-    });
-  const { data: entriesByBuyer = [], isLoading: historyByBuyerLoading } = useContactCombinedHistory(
-    !hasFirmDomains ? primaryBuyerId : null,
-  );
+  // Fetch combined history for overview stats
+  const { data: entriesByBuyer = [], isLoading: historyByBuyerLoading } =
+    useContactCombinedHistory(primaryBuyerId);
   const { data: entriesByEmail = [], isLoading: historyByEmailLoading } =
-    useContactCombinedHistoryByEmail(!hasFirmDomains && !primaryBuyerId ? lookupEmail : null);
+    useContactCombinedHistoryByEmail(!primaryBuyerId ? lookupEmail : null);
 
   const isLoading =
-    buyersLoading ||
-    contactsLoading ||
-    historyByBuyerLoading ||
-    historyByEmailLoading ||
-    historyByDomainLoading;
-  const allEntries = hasFirmDomains
-    ? entriesByDomain
-    : primaryBuyerId
-      ? entriesByBuyer
-      : entriesByEmail;
+    buyersLoading || contactsLoading || historyByBuyerLoading || historyByEmailLoading;
+  const allEntries = primaryBuyerId ? entriesByBuyer : entriesByEmail;
 
   // Filter by date range
   const filteredEntries = useMemo(
@@ -253,7 +206,6 @@ export function useContactHistory(
 
     for (const c of sellerContacts) {
       if (allContactEmails.has(c.email?.toLowerCase() || '')) continue;
-      allContactEmails.add(c.email?.toLowerCase() || '');
       tabs.push({
         id: `seller-${c.id}`,
         label: c.name,
@@ -262,48 +214,8 @@ export function useContactHistory(
       });
     }
 
-    // Discovered contacts: emails found in activity whose domain matches one
-    // of the firm's registered aliases but which don't correspond to any
-    // known contact record. These are the previously invisible touchpoints —
-    // the whole point of domain-based tracking.
-    if (hasFirmDomains && allEntries.length > 0) {
-      const firmDomainSet = new Set(normalizedFirmDomains);
-      const discoveredEmails = new Map<string, string>();
-
-      for (const entry of allEntries) {
-        const email = entry.details.lead_email;
-        if (!email) continue;
-        const lower = email.toLowerCase().trim();
-        if (lower.length === 0 || allContactEmails.has(lower)) continue;
-        if (discoveredEmails.has(lower)) continue;
-        const atIdx = lower.indexOf('@');
-        if (atIdx <= 0) continue;
-        const domain = lower.slice(atIdx + 1);
-        if (!firmDomainSet.has(domain)) continue;
-        discoveredEmails.set(lower, email);
-      }
-
-      const sorted = Array.from(discoveredEmails.entries()).sort(([a], [b]) => a.localeCompare(b));
-      for (const [lower, original] of sorted) {
-        tabs.push({
-          id: `discovered-${lower}`,
-          label: prettifyDiscoveredEmail(original),
-          email: original,
-          type: 'discovered',
-        });
-      }
-    }
-
     return tabs;
-  }, [
-    primaryContactEmail,
-    primaryContactName,
-    associatedBuyers,
-    sellerContacts,
-    hasFirmDomains,
-    normalizedFirmDomains,
-    allEntries,
-  ]);
+  }, [primaryContactEmail, primaryContactName, associatedBuyers, sellerContacts]);
 
   return {
     isLoading,

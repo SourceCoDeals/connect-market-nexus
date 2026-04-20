@@ -96,8 +96,7 @@ export const usePEFirmData = () => {
   const { data: contacts = [] } = useQuery({
     queryKey: ['remarketing', 'contacts', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contacts')
+      const { data, error } = await (supabase.from('contacts') as any)
         .select(
           'id, first_name, last_name, email, phone, linkedin_url, title, is_primary_at_firm, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone',
         )
@@ -107,7 +106,7 @@ export const usePEFirmData = () => {
         .order('is_primary_at_firm', { ascending: false });
 
       if (error) throw error;
-      return (data || []).map((c) => ({
+      return ((data ?? []) as any[]).map((c) => ({
         id: c.id,
         name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
         email: c.email,
@@ -266,31 +265,25 @@ export const usePEFirmData = () => {
         office_phone: '',
       });
     },
-    onError: (error: Error) => {
-      const message = error?.message?.trim() || 'Failed to add contact';
-      toast.error(`Failed to add contact: ${message}`);
+    onError: () => {
+      toast.error('Failed to add contact');
     },
   });
 
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
-      // See ReMarketingBuyerDetail/useBuyerMutations.ts — direct UPDATE
-      // on contacts is REVOKEd for the authenticated role, so we route
-      // through contacts_soft_delete which stamps both archived=true
-      // and deleted_at=now() to keep the two soft-delete conventions in
-      // sync with the LinkedIn unique index.
-      const { error } = await (supabase.rpc as any)('contacts_soft_delete', {
-        p_contact_id: contactId,
-      });
+      const { error } = await supabase
+        .from('contacts')
+        .update({ archived: true, updated_at: new Date().toISOString() })
+        .eq('id', contactId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
       toast.success('Contact deleted');
     },
-    onError: (error: Error) => {
-      const message = error?.message?.trim() || 'Failed to delete contact';
-      toast.error(`Failed to delete contact: ${message}`);
+    onError: () => {
+      toast.error('Failed to delete contact');
     },
   });
 

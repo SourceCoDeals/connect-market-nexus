@@ -14,36 +14,15 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type Timeframe = 'today' | '7d' | '14d' | '30d' | '90d' | 'all';
 
-export interface OutreachStats {
-  emails_sent: number;
-  emails_opened: number;
-  emails_replied: number;
-  linkedin_sent: number;
-  linkedin_replied: number;
-  calls_made: number;
-  calls_connected: number;
-}
-
-export interface IndustryRow {
-  category: string;
-  cnt: number;
-}
-
 export interface DashboardStats {
   cards: Record<string, number>;
   new_by_source: Record<string, number>;
   all_by_source: Record<string, number>;
-  /** Total EBITDA per source — new in V2 RPC. */
-  ebitda_by_source?: Record<string, number>;
-  /** Top 10 industries by deal count — new in V2 RPC. */
-  industry_breakdown?: IndustryRow[];
   team: Array<Record<string, unknown>>;
   score_dist: Record<string, number>;
   top_deals: Array<Record<string, unknown>>;
   weekly: Record<string, number>;
   recent_activity: Array<Record<string, unknown>>;
-  /** Outreach aggregates across SmartLead/HeyReach/PhoneBurner — new in V2 RPC. */
-  outreach_stats?: OutreachStats;
 }
 
 export interface UniverseMetric {
@@ -128,27 +107,6 @@ export const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manual',
 };
 
-// Drilldown path for each deal source on the dashboard. Returning null means
-// the source has no dedicated page and the row should render as plain text.
-export function sourceHref(src: string): string | null {
-  switch (src) {
-    case 'captarget':
-      return '/admin/remarketing/leads/captarget';
-    case 'gp_partners':
-      return '/admin/remarketing/leads/gp-partners';
-    case 'sourceco':
-      return '/admin/remarketing/leads/sourceco';
-    case 'valuation_calculator':
-      return '/admin/remarketing/leads/valuation';
-    case 'referral':
-      return '/admin/remarketing/leads/referrals';
-    case 'marketplace':
-    case 'manual':
-    default:
-      return null;
-  }
-}
-
 // ─── Timeframe options ───
 
 export const TF_OPTIONS: { key: Timeframe; label: string }[] = [
@@ -166,13 +124,7 @@ export function useDashboardData(timeframe: Timeframe) {
   const fromDate = getFromDate(timeframe);
 
   // Single RPC call replaces 8+ sequential batch fetches
-  const {
-    data: stats,
-    isLoading: statsLoading,
-    isError: statsIsError,
-    error: statsError,
-    refetch: refetchStats,
-  } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard', 'remarketing-stats', fromDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_remarketing_dashboard_stats', {
@@ -239,12 +191,7 @@ export function useDashboardData(timeframe: Timeframe) {
     created_at: string;
   };
 
-  const {
-    data: callActivityRows,
-    isLoading: callActivityLoading,
-    isError: callActivityIsError,
-    error: callActivityErrorObj,
-  } = useQuery({
+  const { data: callActivityRows, isLoading: callActivityLoading } = useQuery({
     queryKey: ['dashboard', 'call-activity', fromDate],
     queryFn: async (): Promise<CallActivityRow[]> => {
       let query = (supabase as any)
@@ -283,14 +230,11 @@ export function useDashboardData(timeframe: Timeframe) {
   const cards = stats?.cards;
   const newBySource = stats?.new_by_source || {};
   const allBySource = stats?.all_by_source || {};
-  const ebitdaBySource = stats?.ebitda_by_source || {};
-  const industryBreakdown = stats?.industry_breakdown || [];
   const teamData = stats?.team || [];
   const scoreDist = stats?.score_dist;
   const topDeals = stats?.top_deals || [];
   const weeklyData = stats?.weekly || {};
   const recentActivity = stats?.recent_activity || [];
-  const outreachStats = stats?.outreach_stats;
 
   // Universe metrics
   const universeMetrics = useMemo<UniverseMetric[] | null>(() => {
@@ -389,13 +333,9 @@ export function useDashboardData(timeframe: Timeframe) {
   return {
     loading: statsLoading,
     universesLoading,
-    statsError: statsIsError ? (statsError as Error | null) : null,
-    refetchStats,
     cards,
     newBySource,
     allBySource,
-    ebitdaBySource,
-    industryBreakdown,
     teamData,
     topDeals,
     weeklyData,
@@ -404,8 +344,6 @@ export function useDashboardData(timeframe: Timeframe) {
     universeMetrics,
     callActivity,
     callActivityLoading,
-    callActivityError: callActivityIsError ? (callActivityErrorObj as Error | null) : null,
     adminActivity,
-    outreachStats,
   };
 }

@@ -47,7 +47,7 @@ export function FinancialOverviewCard({ deal, onEditClick }: FinancialOverviewCa
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
               EBITDA MARGIN
             </p>
-            {deal.revenue && deal.ebitda ? (
+            {deal.revenue && deal.ebitda && deal.revenue > 0 ? (
               <>
                 <span className="text-2xl font-bold">
                   {((deal.ebitda / deal.revenue) * 100).toFixed(0)}%

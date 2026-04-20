@@ -21,7 +21,12 @@ interface PrimaryContactCardProps {
   phone: string | null;
   additionalPhones?: string[];
   dealId?: string;
-  onSave: (data: { name: string; email: string; phone: string; additionalPhones?: string[] }) => Promise<void>;
+  onSave: (data: {
+    name: string;
+    email: string;
+    phone: string;
+    additionalPhones?: string[];
+  }) => Promise<void>;
 }
 
 export const PrimaryContactCard = ({
@@ -52,8 +57,7 @@ export const PrimaryContactCard = ({
       setIsEditOpen(false);
       toast.success('Contact updated');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save';
-      toast.error(message);
+      toast.error('Failed to save');
     } finally {
       setIsSaving(false);
     }
@@ -226,7 +230,9 @@ export const PrimaryContactCard = ({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 shrink-0"
-                    onClick={() => setEditedAdditionalPhones(editedAdditionalPhones.filter((_, i) => i !== idx))}
+                    onClick={() =>
+                      setEditedAdditionalPhones(editedAdditionalPhones.filter((_, i) => i !== idx))
+                    }
                   >
                     <X className="h-4 w-4" />
                   </Button>

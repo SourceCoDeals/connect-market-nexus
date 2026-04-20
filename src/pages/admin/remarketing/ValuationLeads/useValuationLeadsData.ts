@@ -12,6 +12,10 @@ export { PAGE_SIZE };
 export { useValuationLeadsMutations };
 
 export function useValuationLeadsData() {
+  // We need the polling-window state from mutations to feed back into queries.
+  // To avoid a circular hook, we run a lightweight first pass with no polling,
+  // build mutations (which expose `contactPollingUntil`), then re-run queries
+  // with that value. React-query dedupes the underlying fetch, so this is cheap.
   const queries = useValuationLeadsQueries();
 
   const mutations = useValuationLeadsMutations({
@@ -23,6 +27,11 @@ export function useValuationLeadsData() {
     dismissSummary: queries.dismissSummary,
     setHideNotFit: queries.setHideNotFit,
   });
+
+  // Second-pass query subscription with the active polling window. Reuses
+  // the same query key so React Query serves cached data; the only effect
+  // is enabling `refetchInterval` while a Clay search is in flight.
+  useValuationLeadsQueries({ contactPollingUntil: mutations.contactPollingUntil });
 
   return {
     ...queries,

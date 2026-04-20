@@ -13,18 +13,14 @@ import { VALUATION_LEAD_FIELDS } from '@/components/filters';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
 import type { ValuationLead, SortColumn, SortDirection } from './types';
-import {
-  cleanWebsiteToDomain,
-  extractBusinessName,
-  inferWebsite,
-  QUALITY_ORDER,
-} from './helpers';
+import { cleanWebsiteToDomain, extractBusinessName, inferWebsite, QUALITY_ORDER } from './helpers';
 
 const PAGE_SIZE = 50;
 
 export { PAGE_SIZE };
 
-export function useValuationLeadsQueries() {
+export function useValuationLeadsQueries(options: { contactPollingUntil?: number | null } = {}) {
+  const { contactPollingUntil = null } = options;
   const { data: adminProfiles } = useAdminProfiles();
 
   const {
@@ -59,13 +55,13 @@ export function useValuationLeadsQueries() {
     },
     [setSearchParams],
   );
-  const hidePushed = searchParams.get('hidePushed') !== '0'; // hidden by default
+  const hidePushed = searchParams.get('hidePushed') === '1';
   const setHidePushed = useCallback(
     (v: boolean) => {
       setSearchParams(
         (p) => {
           const n = new URLSearchParams(p);
-          if (!v) n.set('hidePushed', '0');
+          if (v) n.set('hidePushed', '1');
           else n.delete('hidePushed');
           n.delete('cp');
           return n;
@@ -83,6 +79,22 @@ export function useValuationLeadsQueries() {
           const n = new URLSearchParams(p);
           if (!v) n.set('hideNotFit', '0');
           else n.delete('hideNotFit');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const showQuarantined = searchParams.get('quarantined') === '1';
+  const setShowQuarantined = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('quarantined', '1');
+          else n.delete('quarantined');
           n.delete('cp');
           return n;
         },
@@ -111,15 +123,20 @@ export function useValuationLeadsQueries() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Poll every 20s while we're waiting for async Clay results to land.
+  // The window is set in `handleFindContacts` (5 minutes after a queued search).
+  const pollingActive = contactPollingUntil !== null && Date.now() < contactPollingUntil;
+
   // Fetch valuation leads
   const {
     data: leads,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ['remarketing', 'valuation-leads'],
+    queryKey: ['remarketing', 'valuation-leads', showQuarantined ? 'quarantined' : 'active'],
     refetchOnMount: 'always',
     staleTime: 30_000,
+    refetchInterval: pollingActive ? 20_000 : false,
     queryFn: async () => {
       const allData: ValuationLead[] = [];
       const batchSize = 1000;
@@ -132,7 +149,7 @@ export function useValuationLeadsQueries() {
           .select(
             '*, listings!valuation_leads_pushed_listing_id_fkey(description, executive_summary)',
           )
-          .eq('excluded', false)
+          .eq('excluded', showQuarantined)
           .order('created_at', { ascending: false })
           .range(offset, offset + batchSize - 1);
 
@@ -165,6 +182,24 @@ export function useValuationLeadsQueries() {
     },
   });
 
+  // Lightweight count of recently quarantined leads (last 7 days) so we can
+  // surface a badge next to the "Show Quarantined" toggle. Keeps the default
+  // view honest about auto-rejected submissions without forcing a full fetch.
+  const { data: recentQuarantinedCount = 0 } = useQuery({
+    queryKey: ['remarketing', 'valuation-leads', 'quarantined-recent-count'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { count, error } = await supabase
+        .from('valuation_leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('excluded', true)
+        .gte('created_at', sevenDaysAgo);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
   const calculatorTypes = useMemo(() => {
     if (!leads) return ['general'];
     const types = new Set(leads.map((l) => l.calculator_type));
@@ -184,7 +219,6 @@ export function useValuationLeadsQueries() {
     filteredCount,
     totalCount: engineTotal,
   } = useFilterEngine(leads ?? [], VALUATION_LEAD_FIELDS);
-
 
   // Apply tab + timeframe on top of engine-filtered results, then sort
   const filteredLeads = useMemo(() => {
@@ -296,7 +330,16 @@ export function useValuationLeadsQueries() {
     });
 
     return sorted;
-  }, [engineFiltered, activeTab, isInRange, sortColumn, sortDirection, adminProfiles, hidePushed, hideNotFit]);
+  }, [
+    engineFiltered,
+    activeTab,
+    isInRange,
+    sortColumn,
+    sortDirection,
+    adminProfiles,
+    hidePushed,
+    hideNotFit,
+  ]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
@@ -309,7 +352,7 @@ export function useValuationLeadsQueries() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, timeframe, sortColumn, sortDirection, filterState]);
 
   const handleSort = (col: SortColumn) => {
@@ -360,8 +403,35 @@ export function useValuationLeadsQueries() {
             filteredLeads.reduce((sum, l) => sum + (l.lead_score ?? 0), 0) / filteredLeads.length,
           )
         : 0;
-    return { totalLeads, openToIntros, exitNow, pushedCount, avgScore };
-  }, [filteredLeads]);
+
+    // Contact coverage — counts the RAW leads list (NOT the deduped/filtered
+    // view) so the count matches the server-side backfill predicate exactly.
+    // Eligibility predicate (canonical, must match the backfill edge function):
+    //   excluded = false AND full_name IS NOT NULL AND email IS NOT NULL
+    //   AND (linkedin_url IS NULL OR phone IS NULL)
+    const rawLeads = leads ?? [];
+    const eligibleForContact = rawLeads.filter((l) => !l.excluded && l.full_name && l.email);
+    const withContact = eligibleForContact.filter((l) => !!l.phone && !!l.linkedin_url).length;
+    const missingContact = eligibleForContact.filter((l) => !l.phone || !l.linkedin_url).length;
+    const contactCoveragePct =
+      eligibleForContact.length > 0
+        ? Math.round((withContact / eligibleForContact.length) * 100)
+        : 0;
+
+    return {
+      totalLeads,
+      openToIntros,
+      exitNow,
+      pushedCount,
+      avgScore,
+      contactCoverage: {
+        withContact,
+        missingContact,
+        eligible: eligibleForContact.length,
+        pct: contactCoveragePct,
+      },
+    };
+  }, [filteredLeads, leads]);
 
   return {
     // Data
@@ -404,6 +474,9 @@ export function useValuationLeadsQueries() {
     setHidePushed,
     hideNotFit,
     setHideNotFit,
+    showQuarantined,
+    setShowQuarantined,
+    recentQuarantinedCount,
     // Enrichment (pass-through from useEnrichmentProgress)
     enrichmentProgress,
     enrichmentSummary,

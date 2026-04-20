@@ -46,6 +46,7 @@ export interface ValuationLead {
   calculator_specific_data: Record<string, unknown> | null;
   raw_calculator_inputs: Record<string, unknown> | null;
   raw_valuation_results: Record<string, unknown> | null;
+
   // For deal owner display (assigned after push)
   deal_owner_id?: string | null;
   is_priority_target?: boolean | null;
@@ -55,10 +56,35 @@ export interface ValuationLead {
   needs_owner_contact?: boolean | null;
   is_archived?: boolean | null;
   not_a_fit?: boolean | null;
+
   // Joined from listings (via pushed_listing_id) — populated by enrichment
   listing_description?: string | null;
   initial_unlock_at?: string | null;
   submission_count?: number | null;
+
+  // ─── Complete calculator payload fields ───
+  marketing_opt_in?: boolean | null;
+  calculator_session_id?: string | null;
+  user_location?: string | null;
+  gross_margin?: number | null;
+  prev_revenue?: number | null;
+  years_in_business?: string | null;
+  owned_assets?: number | null;
+  custom_industry?: string | null;
+  exit_structure?: string | null;
+  exit_involvement?: string | null;
+  buyer_intro_phone?: string | null;
+  buyer_intro_email?: string | null;
+  financial_details?: Record<string, unknown> | null;
+  readiness_drivers?: Record<string, unknown> | null;
+  exit_intent_details?: Record<string, unknown> | null;
+  tags?: Record<string, unknown> | null;
+  session_metadata?: Record<string, unknown> | null;
+  valuation_insights?: unknown[] | null;
+
+  // Website enrichment data
+  website_enrichment_data?: Record<string, unknown> | null;
+  website_enriched_at?: string | null;
 }
 
 export type SortColumn =

@@ -55,12 +55,10 @@ const ReMarketingDealDetail = () => {
     transcriptsLoading,
     dealOwnerName,
     updateDealMutation,
-    savePrimaryContactMutation,
     toggleUniverseFlagMutation,
     toggleContactOwnerMutation,
     toggleBuyerSearchMutation,
     updateNameMutation,
-    primarySellerContact,
     isEnriching,
     isAnalyzingNotes,
     buyerHistoryOpen,
@@ -257,8 +255,6 @@ const ReMarketingDealDetail = () => {
             handleEnrichFromWebsite={handleEnrichFromWebsite}
             handleAnalyzeNotes={handleAnalyzeNotes}
             updateDealMutation={updateDealMutation}
-            savePrimaryContactMutation={savePrimaryContactMutation}
-            primarySellerContact={primarySellerContact ?? null}
             toggleContactOwnerMutation={toggleContactOwnerMutation}
             toggleBuyerSearchMutation={toggleBuyerSearchMutation}
             toggleUniverseFlagMutation={toggleUniverseFlagMutation}

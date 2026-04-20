@@ -110,11 +110,7 @@ export function useCapTargetActions(
           .in('id', validIds);
 
         if (error) {
-          toast({
-            variant: 'destructive',
-            title: 'Failed to approve deals',
-            description: error.message || 'Unknown error — check browser console.',
-          });
+          toast({ title: 'Error', description: 'Failed to approve deals' });
         } else {
           toast({
             title: 'Approved',
@@ -134,34 +130,17 @@ export function useCapTargetActions(
   // ─── Bulk Enrich ────────────────────────────────────────────────────
   const handleBulkEnrich = useCallback(
     async (mode: 'unenriched' | 'all') => {
-      // Query DB directly for target IDs (don't rely on client-side page data).
-      // Paginated to defeat the project-wide PostgREST `max_rows = 1000` cap —
-      // a single unpaginated `.select('id')` would silently stop at 1,000 rows
-      // and queue only the first thousand captarget listings for enrichment.
-      const targets: { id: string }[] = [];
-      const FETCH_BATCH = 1000;
-      let offset = 0;
-      while (true) {
-        let query = supabase
-          .from('listings')
-          .select('id')
-          .eq('deal_source', 'captarget');
-        if (mode === 'unenriched') {
-          query = query.is('enriched_at', null);
-        }
-        const { data, error: fetchError } = await query
-          .order('id', { ascending: true })
-          .range(offset, offset + FETCH_BATCH - 1);
-        if (fetchError) {
-          sonnerToast.error('Failed to fetch deals');
-          return;
-        }
-        if (!data || data.length === 0) break;
-        targets.push(...data);
-        if (data.length < FETCH_BATCH) break;
-        offset += FETCH_BATCH;
+      // Query DB directly for target IDs (don't rely on client-side page data)
+      let query = supabase.from('listings').select('id').eq('deal_source', 'captarget');
+      if (mode === 'unenriched') {
+        query = query.is('enriched_at', null);
       }
-      if (!targets.length) {
+      const { data: targets, error: fetchError } = await query;
+      if (fetchError) {
+        sonnerToast.error('Failed to fetch deals');
+        return;
+      }
+      if (!targets?.length) {
         sonnerToast.info('No deals to enrich');
         return;
       }
@@ -455,17 +434,9 @@ export function useCapTargetActions(
     setIsArchiving(true);
     try {
       const dealIds = Array.from(selectedIds);
-      // Set both the captarget-local status tab flag AND the cross-dashboard
-      // visibility flag so the archived rows actually disappear from the main
-      // remarketing dashboard (which filters on remarketing_status='active').
-      // Previously only captarget_status was set, leaving archived deals
-      // counted in the headline KPIs forever.
       const { error } = await supabase
         .from('listings')
-        .update({
-          captarget_status: 'inactive',
-          remarketing_status: 'archived',
-        } as never)
+        .update({ captarget_status: 'inactive' })
         .in('id', dealIds);
       if (error) throw error;
       toast({
@@ -474,7 +445,6 @@ export function useCapTargetActions(
       });
       setSelectedIds(new Set());
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
-      await queryClient.invalidateQueries({ queryKey: ['dashboard', 'remarketing-stats'] });
     } catch (err: unknown) {
       toast({
         variant: 'destructive',
@@ -491,15 +461,10 @@ export function useCapTargetActions(
     setIsDeleting(true);
     try {
       const dealIds = Array.from(selectedIds);
-      // Clear dependent rows in one round-trip each instead of per-deal
-      // (previously: 2 × N sequential DELETEs before the listings delete).
-      const [{ error: queueErr }, { error: scoresErr }] = await Promise.all([
-        supabase.from('enrichment_queue').delete().in('listing_id', dealIds),
-        supabase.from('remarketing_scores').delete().in('listing_id', dealIds),
-      ]);
-      if (queueErr) throw queueErr;
-      if (scoresErr) throw scoresErr;
-
+      for (const dealId of dealIds) {
+        await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
+        await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
+      }
       const { error } = await supabase.from('listings').delete().in('id', dealIds);
       if (error) throw error;
       toast({
@@ -508,7 +473,6 @@ export function useCapTargetActions(
       });
       setSelectedIds(new Set());
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
-      await queryClient.invalidateQueries({ queryKey: ['dashboard', 'remarketing-stats'] });
     } catch (err: unknown) {
       toast({
         variant: 'destructive',

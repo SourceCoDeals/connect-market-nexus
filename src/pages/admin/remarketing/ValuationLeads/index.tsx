@@ -18,6 +18,10 @@ import {
   AddDealsToListDialog,
   PushToHeyreachModal,
 } from '@/components/remarketing';
+import {
+  ContactBackfillRunCard,
+  useLatestContactBackfillRun,
+} from '@/components/remarketing/ContactBackfillRunCard';
 import type { DealForList } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
@@ -38,8 +42,11 @@ import {
   EyeOff,
   ThumbsDown,
   Upload,
+  Phone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { useValuationLeadsData } from './useValuationLeadsData';
 import { ValuationLeadsTable } from './ValuationLeadsTable';
 import { ValuationLeadUploadDialog } from './ValuationLeadUploadDialog';
@@ -97,6 +104,9 @@ export default function ValuationLeads() {
     setHidePushed,
     hideNotFit,
     setHideNotFit,
+    showQuarantined,
+    setShowQuarantined,
+    recentQuarantinedCount,
     handleRowClick,
     handleOpenDeal,
     handlePushToAllDeals,
@@ -110,6 +120,7 @@ export default function ValuationLeads() {
     handleAssignOwner,
     handleEnrichSelected,
     handleDelete,
+    handleFindContacts,
     selectedLead,
     setSelectedLead,
     drawerOpen,
@@ -120,6 +131,8 @@ export default function ValuationLeads() {
     isScoring,
     isEnriching,
     isMarkingNotFit,
+    isFindingContacts,
+    setContactPollingUntil,
     isDeleting,
     enrichmentProgress,
     enrichmentSummary,
@@ -156,11 +169,14 @@ export default function ValuationLeads() {
       setSelectedLead(lead);
       setDrawerOpen(true);
       // Clear param so it doesn't re-open on subsequent renders
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('leadId');
-        return next;
-      }, { replace: true });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('leadId');
+          return next;
+        },
+        { replace: true },
+      );
     }
   }, [searchParams, leads, setSelectedLead, setDrawerOpen, setSearchParams]);
 
@@ -214,6 +230,135 @@ export default function ValuationLeads() {
   const unscoredCount = leads?.filter((l) => l.lead_score == null).length || 0;
   const pushedTotal = leads?.filter((l) => l.pushed_to_all_deals).length || 0;
 
+  // Promoted "Find missing Phone & LinkedIn (all)" handler — used by both the
+  // primary toolbar button and the Enrich dropdown item.
+  // Delegates to the server-side `backfill-valuation-lead-contacts` edge function
+  // which returns immediately and runs the search via EdgeRuntime.waitUntil — no
+  // browser timeout risk, no need to keep the tab open.
+  // Track the entire confirm + invoke window so the button stays disabled even
+  // before `isFindingContacts` flips, preventing rapid double-clicks from
+  // spawning duplicate runs.
+  const [isKickingOffBackfill, setIsKickingOffBackfill] = useState(false);
+
+  // Server-side run state — used to keep the button in "Backfilling N/M…" mode
+  // for the entire duration of an active run, not just the kickoff window.
+  const { data: latestRun } = useLatestContactBackfillRun();
+  const isServerRunning = latestRun?.status === 'running';
+  const serverRunTotal = latestRun
+    ? Math.max(latestRun.eligible_count, latestRun.processed_count + latestRun.pending_count, 1)
+    : 0;
+
+  const runFindMissingContacts = async () => {
+    if (isKickingOffBackfill) return;
+    setIsKickingOffBackfill(true);
+    try {
+      await runFindMissingContactsImpl();
+    } finally {
+      setIsKickingOffBackfill(false);
+    }
+  };
+
+  const runFindMissingContactsImpl = async () => {
+    // First peek at how many leads are eligible so the confirm dialog is honest.
+    const { count: eligibleCount, error: countErr } = await supabase
+      .from('valuation_leads')
+      .select('id', { count: 'exact', head: true })
+      .or('linkedin_url.is.null,phone.is.null')
+      .not('full_name', 'is', null)
+      .not('email', 'is', null)
+      .eq('excluded', false);
+    if (countErr) {
+      toast.error('Failed to query eligible leads');
+      return;
+    }
+    const total = eligibleCount ?? 0;
+    if (total === 0) {
+      toast.info('No leads missing phone or LinkedIn');
+      return;
+    }
+
+    if (
+      !confirm(
+        `Search Serper + Blitz for ${total} lead${total !== 1 ? 's' : ''} missing phone or LinkedIn?\n\nRuns server-side — you can close this tab. Results appear automatically as they arrive (~5–10 min). Cost ≈ $${(total * 0.01).toFixed(2)}.`,
+      )
+    ) {
+      return;
+    }
+
+    // Refresh the JWT before invoking, so the verifier read below isn't blocked
+    // by the periodic "missing sub claim" blip we see in auth logs on long-lived
+    // admin tabs.
+    try {
+      await supabase.auth.refreshSession();
+    } catch {
+      // Non-fatal — invoke will still attach whatever token is current.
+    }
+
+    // Kick off a single run. The edge function enqueues every lead into
+    // contact_backfill_queue and processes them sequentially with checkpoint
+    // resume — no in-trace fan-out, no batch chaining.
+    const { data, error } = await supabase.functions.invoke('backfill-valuation-lead-contacts', {
+      body: {},
+    });
+    if (error) {
+      toast.error(`Failed to start backfill: ${error.message}`);
+      return;
+    }
+    const result = data as { eligible_count?: number; run_id?: string; started?: boolean } | null;
+    if (!result?.run_id) {
+      toast.error('Backfill did not start — no run record was created. Check edge function logs.', {
+        duration: 10000,
+      });
+      return;
+    }
+
+    // Server confirmed a run_id. Start polling immediately so the UI refreshes
+    // as the worker writes phones/LinkedIns — independent of the verifier read.
+    const estMinutes = Math.max(3, Math.ceil(total / 50));
+    const cappedMinutes = Math.min(estMinutes, 30);
+    setContactPollingUntil(Date.now() + cappedMinutes * 60 * 1000);
+
+    // Tolerant verifier: PostgREST + replication lag + transient JWT blips can
+    // make the immediate read return null even though the row is committed.
+    // Retry a few times with backoff before downgrading to an info toast.
+    const verifyRun = async (): Promise<boolean> => {
+      const delays = [500, 1500, 3000];
+      for (let i = 0; i < delays.length; i++) {
+        await new Promise((r) => setTimeout(r, delays[i]));
+        const { data: runCheck } = await supabase
+          .from('contact_backfill_runs')
+          .select('id')
+          .eq('id', result.run_id!)
+          .maybeSingle();
+        if (runCheck) return true;
+      }
+      return false;
+    };
+
+    const verified = await verifyRun();
+    if (verified) {
+      toast.success(
+        `Backfill started for ${total} leads (run ${result.run_id.slice(0, 8)}). Watch the progress card below — you can close this tab.`,
+        { duration: 10000 },
+      );
+    } else {
+      toast.info(
+        `Backfill started server-side (run ${result.run_id.slice(0, 8)}). Live progress will appear in the card below — refresh in a few minutes if no progress is visible.`,
+        { duration: 10000 },
+      );
+    }
+
+    // Scroll the progress card into view so the user immediately sees it.
+    // setTimeout gives React a tick to render the placeholder card if it
+    // hasn't already mounted.
+    setTimeout(() => {
+      const el = document.getElementById('contact-backfill-run-card');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 250);
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4">
@@ -240,6 +385,24 @@ export default function ValuationLeads() {
             <Upload className="h-4 w-4 mr-1" />
             Upload
           </Button>
+          {(kpiStats.contactCoverage.missingContact > 0 || isServerRunning) && (
+            <Button
+              variant="default"
+              size="sm"
+              disabled={isFindingContacts || isKickingOffBackfill || isServerRunning}
+              onClick={runFindMissingContacts}
+              title="Search Serper + Blitz for phone & LinkedIn on leads missing contact info"
+            >
+              {isFindingContacts || isKickingOffBackfill || isServerRunning ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Phone className="h-4 w-4 mr-1" />
+              )}
+              {isServerRunning && latestRun
+                ? `Backfilling ${latestRun.processed_count}/${serverRunTotal}…`
+                : `Find Contacts (${kpiStats.contactCoverage.missingContact})`}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" disabled={isEnriching}>
@@ -258,6 +421,14 @@ export default function ValuationLeads() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleBulkEnrich('all')}>
                 Re-enrich All
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={runFindMissingContacts}
+                disabled={isFindingContacts || isKickingOffBackfill || isServerRunning}
+              >
+                {isServerRunning && latestRun
+                  ? `Backfilling ${latestRun.processed_count}/${serverRunTotal}…`
+                  : 'Find missing Phone & LinkedIn (all)'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -319,7 +490,7 @@ export default function ValuationLeads() {
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -372,7 +543,28 @@ export default function ValuationLeads() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Phone className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Contact Coverage</p>
+                <p className="text-2xl font-bold">
+                  {kpiStats.contactCoverage.pct}%
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    ({kpiStats.contactCoverage.withContact}/{kpiStats.contactCoverage.eligible})
+                  </span>
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Contact backfill run progress (latest run) */}
+      <ContactBackfillRunCard />
 
       {/* Filter Bar */}
       <FilterBar
@@ -410,6 +602,27 @@ export default function ValuationLeads() {
           <ThumbsDown className="h-3.5 w-3.5" />
           {hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
         </button>
+        <button
+          onClick={() => setShowQuarantined(!showQuarantined)}
+          className={cn(
+            'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
+            showQuarantined
+              ? 'bg-destructive/10 border-destructive/30 text-destructive font-medium'
+              : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
+          )}
+          title="View leads auto-excluded for invalid website / business name / financials"
+        >
+          <EyeOff className="h-3.5 w-3.5" />
+          {showQuarantined ? 'Viewing Quarantined' : 'Show Quarantined'}
+          {!showQuarantined && recentQuarantinedCount > 0 && (
+            <span
+              className="ml-1 inline-flex items-center justify-center rounded-full bg-destructive/15 text-destructive text-[10px] font-semibold leading-none px-1.5 py-0.5"
+              title={`${recentQuarantinedCount} auto-quarantined in the last 7 days`}
+            >
+              {recentQuarantinedCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Enrichment Progress */}
@@ -446,6 +659,8 @@ export default function ValuationLeads() {
         isPushing={isPushing}
         onEnrichSelected={(dealIds) => handleEnrichSelected(dealIds)}
         isEnriching={isEnriching}
+        onFindContacts={(dealIds) => handleFindContacts(dealIds)}
+        isFindingContacts={isFindingContacts}
         onExportCSV={() => {
           const selected = filteredLeads.filter((l) => selectedIds.has(l.id));
           exportLeadsToCSV(selected);
@@ -509,6 +724,9 @@ export default function ValuationLeads() {
           handleOpenDeal({ pushed_listing_id: listingId, id: '' } as ValuationLead);
         }}
         isPushing={isPushing}
+        refetchLeads={refetch}
+        onFindContacts={handleFindContacts}
+        isFindingContacts={isFindingContacts}
       />
 
       {/* Leads Table */}
@@ -530,6 +748,7 @@ export default function ValuationLeads() {
         handlePushAndEnrich={handlePushAndEnrich}
         handleMarkNotFit={handleMarkNotFit}
         handleAssignOwner={handleAssignOwner}
+        handleFindContacts={handleFindContacts}
         adminProfiles={adminProfiles}
         safePage={safePage}
         PAGE_SIZE={PAGE_SIZE}

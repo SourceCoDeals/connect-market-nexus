@@ -70,13 +70,13 @@ export function useMasterLeads() {
 
   const sortColumn = (searchParams.get('sort') as SortColumn) ?? 'dateAdded';
   const sortDirection = (searchParams.get('dir') as SortDirection) ?? 'desc';
-  const hidePushed = searchParams.get('hidePushed') !== '0'; // hidden by default
+  const hidePushed = searchParams.get('hidePushed') === '1';
   const setHidePushed = useCallback(
     (v: boolean) => {
       setSearchParams(
         (p) => {
           const n = new URLSearchParams(p);
-          if (!v) n.set('hidePushed', '0');
+          if (v) n.set('hidePushed', '1');
           else n.delete('hidePushed');
           n.delete('cp');
           return n;
@@ -150,9 +150,11 @@ export function useMasterLeads() {
               ebitda: row.ebitda != null ? Number(row.ebitda) : null,
               valuationEstimate: null,
               score: row.deal_total_score != null ? Number(row.deal_total_score) : null,
-              linkedinEmployeeCount: row.linkedin_employee_count != null ? Number(row.linkedin_employee_count) : null,
+              linkedinEmployeeCount:
+                row.linkedin_employee_count != null ? Number(row.linkedin_employee_count) : null,
               linkedinEmployeeRange: row.linkedin_employee_range || null,
-              googleReviewCount: row.google_review_count != null ? Number(row.google_review_count) : null,
+              googleReviewCount:
+                row.google_review_count != null ? Number(row.google_review_count) : null,
               pushedToActiveDeals: !!row.pushed_to_all_deals,
               dateAdded: row.created_at,
               detailPath: `/admin/remarketing/leads/${sourcePathMap[source] ?? source}/${row.id}`,
@@ -266,11 +268,7 @@ export function useMasterLeads() {
 
   // ── Combine all leads ──
   const allLeads = useMemo(() => {
-    return [
-      ...(listingLeads ?? []),
-      ...(valuationLeads ?? []),
-      ...(referralLeads ?? []),
-    ];
+    return [...(listingLeads ?? []), ...(valuationLeads ?? []), ...(referralLeads ?? [])];
   }, [listingLeads, valuationLeads, referralLeads]);
 
   // ── Source counts ──
@@ -409,7 +407,7 @@ export function useMasterLeads() {
   // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSource, search, sortColumn, sortDirection, hidePushed]);
 
   const handleSort = useCallback(

@@ -72,7 +72,7 @@ export default function SourceCoDeals() {
       const dealIds = Array.from(hook.selectedIds);
       const { error } = await supabase.rpc('archive_listings_bulk', {
         p_listing_ids: dealIds,
-        p_reason: null,
+        p_reason: undefined,
       });
       if (error) throw error;
       hook.toast({ title: 'Deals Archived', description: `${dealIds.length} deal(s) archived` });
