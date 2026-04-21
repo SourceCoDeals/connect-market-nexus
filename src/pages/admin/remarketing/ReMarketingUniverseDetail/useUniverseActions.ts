@@ -77,7 +77,8 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
     service_weight: number;
     owner_goals_weight: number;
   }) => {
-    setFormData({
+    setFormData((prev) => ({
+      ...prev,
       name: templateConfig.name,
       description: templateConfig.description,
       fit_criteria: templateConfig.fit_criteria,
@@ -85,7 +86,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
       size_weight: templateConfig.size_weight,
       service_weight: templateConfig.service_weight,
       owner_goals_weight: templateConfig.owner_goals_weight,
-    });
+    }));
     setSizeCriteria(templateConfig.size_criteria);
     setGeographyCriteria(templateConfig.geography_criteria);
     setServiceCriteria(templateConfig.service_criteria);

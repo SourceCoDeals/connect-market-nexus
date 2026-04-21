@@ -25,8 +25,21 @@ export interface FlaggedDeal {
   created_at: string | null;
 }
 
-export type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
+export type SortField = 'rank' | 'name' | 'buyers' | 'deals' | 'coverage';
 export type SortOrder = 'asc' | 'desc';
+
+export interface BuyerUniverseRow {
+  id: string;
+  name: string;
+  description: string | null;
+  archived: boolean;
+  fee_agreement_required?: boolean | null;
+  ma_guide_content?: string | null;
+  manual_rank_override?: number | null;
+  owner_id?: string | null;
+  created_at?: string | null;
+  [key: string]: unknown;
+}
 
 export function useUniversesData() {
   const navigate = useNavigate();
@@ -35,7 +48,7 @@ export function useUniversesData() {
 
   const [showArchived, setShowArchived] = useState(false);
   const search = searchParams.get('q') ?? '';
-  const sortField = (searchParams.get('sort') as SortField) ?? 'name';
+  const sortField = (searchParams.get('sort') as SortField) ?? 'rank';
   const sortOrder = (searchParams.get('dir') as SortOrder) ?? 'asc';
 
   // New universe dialog state
@@ -105,10 +118,11 @@ export function useUniversesData() {
         .from('buyer_universes')
         .select('*')
         .eq('archived', showArchived)
+        .order('manual_rank_override', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as BuyerUniverseRow[];
     },
   });
 
@@ -364,11 +378,17 @@ export function useUniversesData() {
   // Create universe mutation
   const createMutation = useMutation({
     mutationFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       const { data, error } = await supabase
         .from('buyer_universes')
         .insert({
           name: newName,
           description: newDescription || null,
+          created_by: user?.id ?? null,
+          owner_id: user?.id ?? null,
         })
         .select()
         .single();
@@ -514,6 +534,14 @@ export function useUniversesData() {
       let bVal: number | string;
 
       switch (sortField) {
+        case 'rank': {
+          const aRank = a.manual_rank_override ?? Number.MAX_SAFE_INTEGER;
+          const bRank = b.manual_rank_override ?? Number.MAX_SAFE_INTEGER;
+          if (aRank !== bRank) {
+            return sortOrder === 'asc' ? aRank - bRank : bRank - aRank;
+          }
+          return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+        }
         case 'name':
           aVal = a.name.toLowerCase();
           bVal = b.name.toLowerCase();
@@ -551,6 +579,67 @@ export function useUniversesData() {
         : (bVal as number) - (aVal as number);
     });
   }, [universes, search, sortField, sortOrder, buyerStats, dealStats]);
+
+  // Local override of the ranked order — keeps drag-and-drop smooth while the
+  // database round-trip completes. Cleared on each fresh fetch.
+  const [localRankedOrder, setLocalRankedOrder] = useState<BuyerUniverseRow[] | null>(null);
+  useEffect(() => {
+    setLocalRankedOrder(null);
+  }, [universes, showArchived, search]);
+
+  const displayedUniverses = useMemo(() => {
+    if (sortField === 'rank' && localRankedOrder && localRankedOrder.length > 0) {
+      const selected = new Set(sortedUniverses.map((u) => u.id));
+      return localRankedOrder.filter((u) => selected.has(u.id));
+    }
+    return sortedUniverses;
+  }, [sortedUniverses, localRankedOrder, sortField]);
+
+  const handleUniverseDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      if (sortField !== 'rank') {
+        toast.info('Switch to Rank sort to reorder universes');
+        return;
+      }
+      const current = [...displayedUniverses];
+      const oldIdx = current.findIndex((u) => u.id === active.id);
+      const newIdx = current.findIndex((u) => u.id === over.id);
+      if (oldIdx === -1 || newIdx === -1) return;
+      const reordered = arrayMove(current, oldIdx, newIdx).map((u, idx) => ({
+        ...u,
+        manual_rank_override: idx + 1,
+      }));
+      setLocalRankedOrder(reordered);
+
+      const changed = reordered.filter((u, idx) => {
+        const orig = current.find((o) => o.id === u.id);
+        return !orig || orig.manual_rank_override !== idx + 1;
+      });
+
+      try {
+        if (changed.length > 0) {
+          await Promise.all(
+            changed.map((u) =>
+              supabase
+                .from('buyer_universes')
+                .update({ manual_rank_override: u.manual_rank_override } as never)
+                .eq('id', u.id)
+                .throwOnError(),
+            ),
+          );
+        }
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'universes-with-stats'] });
+        toast.success(`Universe moved to position ${newIdx + 1}`);
+      } catch {
+        setLocalRankedOrder(null);
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'universes-with-stats'] });
+        toast.error('Failed to update rank');
+      }
+    },
+    [displayedUniverses, sortField, queryClient],
+  );
 
   // Remove flagged deal helper
   const removeFlaggedDeal = useCallback(
@@ -627,7 +716,10 @@ export function useUniversesData() {
     archivedCount,
     flaggedDeals,
     orderedFlagged,
-    sortedUniverses,
+    sortedUniverses: displayedUniverses,
+
+    // Universe drag-and-drop
+    handleUniverseDragEnd,
 
     // Sort state
     sortField,
