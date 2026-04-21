@@ -1,0 +1,6 @@
+-- PLACEHOLDER: version 20260415125854
+-- This migration was applied to the remote database directly (via a different
+-- repository or out-of-band push) and is recorded in schema_migrations, but the
+-- original SQL source was not preserved. This empty stub exists solely so that
+-- supabase CLI treats local and remote migration history as aligned.
+-- DO NOT modify this file. It should never execute.
