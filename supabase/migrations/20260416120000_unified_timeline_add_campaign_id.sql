@@ -13,6 +13,10 @@
 -- All other columns preserved verbatim so existing consumers keep working.
 -- =============================================================================
 
+-- get_firm_activity returns SETOF unified_contact_timeline, so it blocks the
+-- view drop. Drop it first, recreate at the bottom of this migration.
+DROP FUNCTION IF EXISTS public.get_firm_activity(uuid, text[]);
+
 DROP VIEW IF EXISTS public.unified_contact_timeline;
 
 CREATE VIEW public.unified_contact_timeline AS
@@ -123,3 +127,32 @@ SELECT
     'action_items', bt.action_items
   )
 FROM buyer_transcripts bt;
+
+-- Recreate get_firm_activity against the rebuilt view (same body as before —
+-- pg_get_functiondef output captured pre-migration).
+CREATE OR REPLACE FUNCTION public.get_firm_activity(
+  p_buyer_id uuid DEFAULT NULL::uuid,
+  p_domains text[] DEFAULT '{}'::text[]
+)
+RETURNS SETOF public.unified_contact_timeline
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+  SELECT *
+  FROM public.unified_contact_timeline
+  WHERE
+    (p_buyer_id IS NOT NULL AND remarketing_buyer_id = p_buyer_id)
+    OR
+    (
+      cardinality(p_domains) > 0
+      AND contact_email IS NOT NULL
+      AND contact_email <> ''
+      AND lower(split_part(contact_email, '@', 2)) = ANY(
+        SELECT lower(d) FROM unnest(p_domains) AS d WHERE d IS NOT NULL AND d <> ''
+      )
+    )
+  ORDER BY event_at DESC NULLS LAST
+  LIMIT 500;
+$$;
