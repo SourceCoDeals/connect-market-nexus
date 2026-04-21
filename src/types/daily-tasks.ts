@@ -31,7 +31,7 @@ export type TaskStatus =
 
 export type ExtractionConfidence = 'high' | 'medium' | 'low';
 
-export type TaskEntityType = 'listing' | 'deal' | 'buyer' | 'contact';
+export type TaskEntityType = 'listing' | 'deal' | 'buyer' | 'contact' | 'buyer_universe';
 
 export type TaskSource = 'manual' | 'ai' | 'chatbot' | 'system' | 'template';
 
@@ -264,6 +264,7 @@ export const ENTITY_TYPE_LABELS: Record<TaskEntityType, string> = {
   deal: 'Deal',
   buyer: 'Buyer',
   contact: 'Contact',
+  buyer_universe: 'Buyer Universe',
 };
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {

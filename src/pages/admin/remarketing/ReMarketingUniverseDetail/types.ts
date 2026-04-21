@@ -17,6 +17,7 @@ export interface UniverseFormData {
   size_weight: number;
   service_weight: number;
   owner_goals_weight: number;
+  owner_id: string | null;
 }
 
 export interface UniverseFormState {
