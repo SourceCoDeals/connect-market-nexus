@@ -4,7 +4,10 @@
  * All import dialogs should use this utility instead of calling PapaParse directly
  * so that Excel file formats are handled transparently.
  *
- * XLSX (SheetJS) is loaded on-demand to avoid adding ~334KB to the initial bundle.
+ * ExcelJS is loaded on-demand to avoid adding it to the initial bundle.
+ * (Swapped in for SheetJS/xlsx during the 2026-04-20 platform audit —
+ * SheetJS shipped two unpatched high-severity vulns with no fix available,
+ * ExcelJS is actively maintained with no known vulns in the current major.)
  */
 import Papa from 'papaparse';
 
@@ -19,10 +22,38 @@ function isExcelFile(file: File): boolean {
   return ext === 'xls' || ext === 'xlsx';
 }
 
-/** Lazy-load xlsx only when an Excel file is actually encountered */
-async function getXLSX() {
-  const XLSX = await import('xlsx');
-  return XLSX;
+/** Lazy-load exceljs only when an Excel file is actually encountered */
+async function getExcelJS() {
+  const mod = await import('exceljs');
+  // exceljs exports `default` as the ExcelJS namespace in ESM builds.
+  return mod.default ?? mod;
+}
+
+/**
+ * Convert an exceljs cell value to the string shape the CSV consumers expect.
+ * ExcelJS returns: primitives, Date, { richText: [...] }, { formula, result },
+ * { hyperlink, text }, or an error cell. We flatten all of these to a plain
+ * string (matching how PapaParse returns string data for CSVs).
+ */
+function cellValueToString(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'object') {
+    const v = value as Record<string, unknown>;
+    // Rich text cell: { richText: [{ text: 'a' }, { text: 'b' }, ...] }
+    if (Array.isArray(v.richText)) {
+      return v.richText.map((r) => (r as { text?: string }).text ?? '').join('');
+    }
+    // Hyperlink cell: { text: 'label', hyperlink: 'https://...' } — prefer text
+    if (typeof v.text === 'string') return v.text;
+    // Formula cell: { formula, result } — use the computed result
+    if ('result' in v) return cellValueToString(v.result);
+    // Error cell: { error: '#REF!' } — expose the error token
+    if (typeof v.error === 'string') return v.error;
+  }
+  return String(value);
 }
 
 /**
@@ -34,33 +65,42 @@ async function parseExcelFile(file: File): Promise<{
   data: Record<string, string>[];
   columns: string[];
 }> {
-  const XLSX = await getXLSX();
+  const ExcelJS = await getExcelJS();
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array' });
-  const firstSheetName = workbook.SheetNames[0];
-  if (!firstSheetName) {
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const sheet = workbook.worksheets[0];
+  if (!sheet) {
     throw new Error('The uploaded workbook has no sheets');
   }
-  const sheet = workbook.Sheets[firstSheetName];
 
-  // sheet_to_json with header:1 gives us raw arrays; using default gives objects.
-  // defval: '' ensures empty cells become empty strings instead of undefined.
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: '',
+  // Header row = row 1. getRow().values returns a 1-indexed sparse array;
+  // slice(1) drops the leading undefined.
+  const headerRow = sheet.getRow(1).values as unknown[];
+  const columns: string[] = (Array.isArray(headerRow) ? headerRow.slice(1) : [])
+    .map((v) => cellValueToString(v))
+    .map((v) => v.trim())
+    .filter((v) => v !== '');
+
+  if (columns.length === 0) {
+    return { data: [], columns: [] };
+  }
+
+  const data: Record<string, string>[] = [];
+  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return; // skip header
+
+    const values = row.values as unknown[];
+    const cells = Array.isArray(values) ? values.slice(1) : [];
+
+    const obj: Record<string, string> = {};
+    columns.forEach((col, idx) => {
+      obj[col] = cellValueToString(cells[idx]);
+    });
+    data.push(obj);
   });
-
-  // Coerce every value to a string to match what PapaParse produces
-  const data: Record<string, string>[] = rows.map((row) => {
-    const stringRow: Record<string, string> = {};
-    for (const [key, val] of Object.entries(row)) {
-      stringRow[key] = val == null ? '' : String(val);
-    }
-    return stringRow;
-  });
-
-  // Derive column names from the first row keys (preserves header order from XLSX).
-  // Filter out empty/blank headers — Excel files can have blank trailing columns.
-  const columns = data.length > 0 ? Object.keys(data[0]).filter((c) => c && c.trim()) : [];
 
   return { data, columns };
 }
@@ -76,8 +116,7 @@ export interface ParsedSpreadsheet {
  * Parse a spreadsheet file (CSV, XLS, or XLSX) into a common format.
  *
  * For CSV files, PapaParse is used (preserving existing behaviour).
- * For XLS/XLSX files, the SheetJS (xlsx) library converts the first sheet
- * into the same shape.
+ * For XLS/XLSX files, ExcelJS converts the first sheet into the same shape.
  *
  * @param file          The File object from an <input type="file"> element.
  * @param normalizeHdr  Optional header-normalisation function (e.g. strip BOM + trim).
@@ -130,6 +169,17 @@ export async function parseSpreadsheet(
 }
 
 /**
+ * Escape a cell value for CSV output. Wraps in quotes and doubles any
+ * embedded quotes if the value contains a comma, quote, or newline.
+ */
+function csvEscape(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
  * Parse a spreadsheet file into a raw CSV-like text string.
  * This is specifically for the BulkDealImportDialog which feeds the text into
  * its own PapaParse-based `parseCSV()` method.
@@ -139,15 +189,24 @@ export async function parseSpreadsheet(
  */
 export async function readSpreadsheetAsText(file: File): Promise<string> {
   if (isExcelFile(file)) {
-    const XLSX = await getXLSX();
+    const ExcelJS = await getExcelJS();
     const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0];
-    if (!firstSheetName) {
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
       throw new Error('The uploaded workbook has no sheets');
     }
-    const sheet = workbook.Sheets[firstSheetName];
-    return XLSX.utils.sheet_to_csv(sheet);
+
+    const lines: string[] = [];
+    sheet.eachRow({ includeEmpty: true }, (row) => {
+      const values = row.values as unknown[];
+      const cells = Array.isArray(values) ? values.slice(1) : [];
+      lines.push(cells.map((v) => csvEscape(cellValueToString(v))).join(','));
+    });
+    return lines.join('\n');
   }
 
   // CSV — read as text (existing behaviour)

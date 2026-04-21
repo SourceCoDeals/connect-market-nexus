@@ -1167,9 +1167,18 @@ async function processEvent(
           );
           if (resolvedContactId && (mapping.mark_do_not_call || mapping.mark_phone_invalid)) {
             const updates: Record<string, unknown> = {};
-            if (mapping.mark_do_not_call) updates.do_not_contact = true;
-            if (mapping.mark_phone_invalid) updates.phone_invalid = true;
-            await supabase.from('contacts').update(updates).eq('id', resolvedContactId);
+            if (mapping.mark_do_not_call) updates.do_not_call = true;
+            if (mapping.mark_phone_invalid) updates.phone_number_invalid = true;
+            const { error: flagsError } = await supabase.rpc('contacts_apply_webhook_flags', {
+              p_contact_id: resolvedContactId,
+              p_updates: updates,
+            });
+            if (flagsError) {
+              console.error(
+                `[phoneburner-webhook] contacts_apply_webhook_flags failed for ${resolvedContactId}:`,
+                flagsError.message,
+              );
+            }
           }
         }
       }
