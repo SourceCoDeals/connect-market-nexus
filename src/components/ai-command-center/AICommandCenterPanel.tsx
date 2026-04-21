@@ -19,6 +19,8 @@ import {
   Square,
   History,
   Plus,
+  GripVertical,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -28,6 +30,7 @@ import {
   type Conversation,
 } from '@/hooks/useAICommandCenter';
 import { useProactiveAlerts } from '@/hooks/useProactiveAlerts';
+import { useDraggablePanel } from '@/hooks/useDraggablePanel';
 import {
   EmptyState,
   MessageBubble,
@@ -116,6 +119,11 @@ export function AICommandCenterPanel({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const { position, isDragging, handleDragStart, resetPosition } = useDraggablePanel({
+    storageKey: 'ai-command-center:panel-position',
+    panelSize: { width: 640, height: 800 },
+  });
 
   // Feature 2: Proactive alert badge count
   const { data: alertCounts } = useProactiveAlerts();
@@ -300,25 +308,55 @@ export function AICommandCenterPanel({
   }
 
   // ---------- Full panel ----------
+  const panelPositionStyle: React.CSSProperties = position
+    ? { left: position.x, top: position.y, right: 'auto', bottom: 'auto' }
+    : {};
+  const panelCornerClass = position ? '' : 'bottom-8 right-8';
+
   return (
-    <div className={cn('fixed bottom-8 right-8 z-50', className)}>
+    <div className={cn('fixed z-50', panelCornerClass, className)} style={panelPositionStyle}>
       <Card
-        className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30"
+        className={cn(
+          'w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30',
+          isDragging &&
+            'shadow-[0_0_0_2px_rgba(222,199,107,0.5),0_20px_50px_rgba(0,0,0,0.3)] select-none',
+        )}
         style={{ backgroundColor: '#FCF9F0' }}
       >
         {/* Header */}
         <CardHeader className="pb-3 bg-[#0E101A] text-[#FCF9F0] rounded-t-lg">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              <CardTitle className="text-base font-semibold">AI Command Center</CardTitle>
+            <div
+              className={cn(
+                'flex items-center gap-2 flex-1 min-w-0 -ml-1 px-1 py-0.5 rounded',
+                isDragging ? 'cursor-grabbing' : 'cursor-grab',
+                'hover:bg-white/5',
+              )}
+              onMouseDown={handleDragStart}
+              onTouchStart={handleDragStart}
+              title="Drag to move"
+            >
+              <GripVertical className="h-4 w-4 text-white/40 shrink-0" />
+              <Sparkles className="h-5 w-5 shrink-0" />
+              <CardTitle className="text-base font-semibold truncate">AI Command Center</CardTitle>
               {routeInfo && (
-                <Badge variant="outline" className="text-xs border-white/30 text-white/80">
+                <Badge variant="outline" className="text-xs border-white/30 text-white/80 shrink-0">
                   {routeInfo.tier}
                 </Badge>
               )}
             </div>
             <div className="flex items-center gap-1">
+              {position && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                  onClick={resetPosition}
+                  title="Reset position"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
