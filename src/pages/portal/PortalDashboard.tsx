@@ -20,13 +20,7 @@ import type { PortalDealPush } from '@/types/portal';
 
 export default function PortalDashboard() {
   const { slug } = useParams<{ slug: string }>();
-  const {
-    data: portalUser,
-    isLoading: userLoading,
-    status,
-    error: userError,
-    refetch: refetchUser,
-  } = useMyPortalUser(slug);
+  const { data: portalUser, isLoading: userLoading, status } = useMyPortalUser(slug);
   const { data: deals, isLoading: dealsLoading } = useMyPortalDeals(portalUser?.portal_org?.id);
   const { data: messageSummaries } = usePortalMessageSummaries(
     portalUser?.portal_org?.id,
@@ -36,24 +30,6 @@ export default function PortalDashboard() {
 
   if (userLoading || status === 'pending')
     return <div className="py-12 text-center text-muted-foreground">Loading portal...</div>;
-
-  // Separate "query errored" from "no access" — before this, both paths hit
-  // the generic "You do not have access" screen, which hid real failures like
-  // RLS denials, missing migrations, or network errors.
-  if (userError) {
-    return (
-      <div className="py-12 max-w-xl mx-auto px-4 text-center">
-        <p className="text-sm font-semibold text-red-800 mb-2">Couldn't load your portal</p>
-        <p className="text-xs text-muted-foreground mb-4 break-words">
-          {(userError as Error).message || 'The portal access query failed.'}
-        </p>
-        <Button variant="outline" onClick={() => refetchUser()}>
-          Try again
-        </Button>
-      </div>
-    );
-  }
-
   if (!portalUser) {
     return (
       <div className="py-12 text-center">

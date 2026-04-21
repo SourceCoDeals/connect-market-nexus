@@ -58,7 +58,6 @@ export function ThesisCriteriaForm({
   // Form state
   const [industryLabel, setIndustryLabel] = useState('');
   const [industryKeywords, setIndustryKeywords] = useState('');
-  const [excludedKeywords, setExcludedKeywords] = useState('');
   const [ebitdaMin, setEbitdaMin] = useState('');
   const [ebitdaMax, setEbitdaMax] = useState('');
   const [revenueMin, setRevenueMin] = useState('');
@@ -80,7 +79,6 @@ export function ThesisCriteriaForm({
       if (editingCriteria) {
         setIndustryLabel(editingCriteria.industry_label);
         setIndustryKeywords(editingCriteria.industry_keywords.join(', '));
-        setExcludedKeywords((editingCriteria.excluded_keywords ?? []).join(', '));
         setEbitdaMin(editingCriteria.ebitda_min?.toString() ?? '');
         setEbitdaMax(editingCriteria.ebitda_max?.toString() ?? '');
         setRevenueMin(editingCriteria.revenue_min?.toString() ?? '');
@@ -94,7 +92,6 @@ export function ThesisCriteriaForm({
       } else {
         setIndustryLabel('');
         setIndustryKeywords('');
-        setExcludedKeywords('');
         setEbitdaMin('');
         setEbitdaMax('');
         setRevenueMin('');
@@ -145,7 +142,6 @@ export function ThesisCriteriaForm({
       portal_org_id: portalOrgId,
       industry_label: industryLabel.trim(),
       industry_keywords: parseCommaList(industryKeywords),
-      excluded_keywords: parseCommaList(excludedKeywords),
       ebitda_min: toIntegerOrNull(ebitdaMin),
       ebitda_max: toIntegerOrNull(ebitdaMax),
       revenue_min: toIntegerOrNull(revenueMin),
@@ -202,21 +198,6 @@ export function ThesisCriteriaForm({
             />
             <p className="text-xs text-muted-foreground">
               Comma-separated keywords for matching. At least one required.
-            </p>
-          </div>
-
-          {/* Excluded Keywords */}
-          <div className="space-y-1.5">
-            <Label htmlFor="excluded-keywords">Excluded Keywords</Label>
-            <Input
-              id="excluded-keywords"
-              value={excludedKeywords}
-              onChange={(e) => setExcludedKeywords(e.target.value)}
-              placeholder="auto body, collision, franchise"
-            />
-            <p className="text-xs text-muted-foreground">
-              Any match on these kills the deal — use to suppress false positives (e.g. "auto body"
-              for an HVAC thesis).
             </p>
           </div>
 

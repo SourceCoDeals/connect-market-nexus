@@ -47,12 +47,24 @@ interface AIClassification {
 async function classifyReply(replyText: string): Promise<AIClassification> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
-    return { category: 'neutral', sentiment: 'neutral', is_positive: false, confidence: 0, reasoning: 'AI key unavailable' };
+    return {
+      category: 'neutral',
+      sentiment: 'neutral',
+      is_positive: false,
+      confidence: 0,
+      reasoning: 'AI key unavailable',
+    };
   }
 
   const sanitized = sanitizeForAI(replyText);
   if (!sanitized || sanitized.length < 3) {
-    return { category: 'neutral', sentiment: 'neutral', is_positive: false, confidence: 0.5, reasoning: 'Reply too short' };
+    return {
+      category: 'neutral',
+      sentiment: 'neutral',
+      is_positive: false,
+      confidence: 0.5,
+      reasoning: 'Reply too short',
+    };
   }
 
   const systemPrompt = `You are an email reply classifier for a cold email outreach platform. Classify each reply into exactly one category and sentiment.
@@ -88,25 +100,44 @@ When in doubt between "neutral" and "interested", prefer "interested" if the rep
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Classify this email reply:\n\n${sanitized}` },
         ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'classify_reply',
-            description: 'Classify an email reply with category, sentiment, and reasoning.',
-            parameters: {
-              type: 'object',
-              properties: {
-                category: { type: 'string', enum: ['meeting_request', 'interested', 'question', 'referral', 'not_now', 'not_interested', 'unsubscribe', 'out_of_office', 'negative_hostile', 'neutral'] },
-                sentiment: { type: 'string', enum: ['positive', 'activated', 'negative', 'neutral'] },
-                is_positive: { type: 'boolean' },
-                confidence: { type: 'number' },
-                reasoning: { type: 'string' },
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'classify_reply',
+              description: 'Classify an email reply with category, sentiment, and reasoning.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  category: {
+                    type: 'string',
+                    enum: [
+                      'meeting_request',
+                      'interested',
+                      'question',
+                      'referral',
+                      'not_now',
+                      'not_interested',
+                      'unsubscribe',
+                      'out_of_office',
+                      'negative_hostile',
+                      'neutral',
+                    ],
+                  },
+                  sentiment: {
+                    type: 'string',
+                    enum: ['positive', 'activated', 'negative', 'neutral'],
+                  },
+                  is_positive: { type: 'boolean' },
+                  confidence: { type: 'number' },
+                  reasoning: { type: 'string' },
+                },
+                required: ['category', 'sentiment', 'is_positive', 'confidence', 'reasoning'],
+                additionalProperties: false,
               },
-              required: ['category', 'sentiment', 'is_positive', 'confidence', 'reasoning'],
-              additionalProperties: false,
             },
           },
-        }],
+        ],
         tool_choice: { type: 'function', function: { name: 'classify_reply' } },
       }),
     });
@@ -114,15 +145,22 @@ When in doubt between "neutral" and "interested", prefer "interested" if the rep
     if (!response.ok) {
       const errText = await response.text();
       console.error('[reclassify] AI error:', response.status, errText);
-      return { category: 'neutral', sentiment: 'neutral', is_positive: false, confidence: 0, reasoning: `AI failed: ${response.status}` };
+      return {
+        category: 'neutral',
+        sentiment: 'neutral',
+        is_positive: false,
+        confidence: 0,
+        reasoning: `AI failed: ${response.status}`,
+      };
     }
 
     const result = await response.json();
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
-      const parsed = typeof toolCall.function.arguments === 'string'
-        ? JSON.parse(toolCall.function.arguments)
-        : toolCall.function.arguments;
+      const parsed =
+        typeof toolCall.function.arguments === 'string'
+          ? JSON.parse(toolCall.function.arguments)
+          : toolCall.function.arguments;
       return {
         category: parsed.category || 'neutral',
         sentiment: parsed.sentiment || 'neutral',
@@ -132,10 +170,22 @@ When in doubt between "neutral" and "interested", prefer "interested" if the rep
       };
     }
 
-    return { category: 'neutral', sentiment: 'neutral', is_positive: false, confidence: 0, reasoning: 'AI returned no classification' };
+    return {
+      category: 'neutral',
+      sentiment: 'neutral',
+      is_positive: false,
+      confidence: 0,
+      reasoning: 'AI returned no classification',
+    };
   } catch (err) {
     console.error('[reclassify] Classification error:', err);
-    return { category: 'neutral', sentiment: 'neutral', is_positive: false, confidence: 0, reasoning: `Error: ${err instanceof Error ? err.message : 'unknown'}` };
+    return {
+      category: 'neutral',
+      sentiment: 'neutral',
+      is_positive: false,
+      confidence: 0,
+      reasoning: `Error: ${err instanceof Error ? err.message : 'unknown'}`,
+    };
   }
 }
 
@@ -157,7 +207,8 @@ Deno.serve(async (req) => {
   const isInternalCall = internalSecret && internalSecret === serviceRoleKey;
   const webhookSecret = Deno.env.get('SMARTLEAD_WEBHOOK_SECRET');
   const providedWebhookSecret = req.headers.get('x-webhook-secret');
-  const isWebhookAuth = webhookSecret && providedWebhookSecret && timingSafeEqual(providedWebhookSecret, webhookSecret);
+  const isWebhookAuth =
+    webhookSecret && providedWebhookSecret && timingSafeEqual(providedWebhookSecret, webhookSecret);
 
   if (!isInternalCall && !isWebhookAuth) {
     const auth = await requireAdmin(req, supabase);
@@ -176,23 +227,39 @@ Deno.serve(async (req) => {
     // Find all failed classifications
     const { data: failedRecords, error: fetchErr } = await supabase
       .from('smartlead_reply_inbox')
-      .select('id, reply_body, reply_message, preview_text, campaign_name, sl_lead_email, from_email, to_email, to_name, lead_first_name, lead_last_name, lead_company_name, lead_website, lead_phone, lead_mobile, lead_linkedin_url, lead_title, lead_industry, lead_location, time_replied, campaign_id, ai_category, ai_reasoning')
+      .select(
+        'id, reply_body, reply_message, preview_text, campaign_name, sl_lead_email, from_email, to_email, to_name, lead_first_name, lead_last_name, lead_company_name, lead_website, lead_phone, lead_mobile, lead_linkedin_url, lead_title, lead_industry, lead_location, time_replied, campaign_id, ai_category, ai_reasoning',
+      )
       .eq('ai_category', 'neutral')
       .like('ai_reasoning', '%failed%')
       .order('created_at', { ascending: true });
 
     if (fetchErr) {
       console.error('[reclassify] Fetch error:', fetchErr);
-      return new Response(JSON.stringify({ error: 'Failed to fetch records' }), { status: 500, headers: jsonHeaders });
+      return new Response(JSON.stringify({ error: 'Failed to fetch records' }), {
+        status: 500,
+        headers: jsonHeaders,
+      });
     }
 
     if (!failedRecords || failedRecords.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: 'No failed records found', total: 0 }), { headers: jsonHeaders });
+      return new Response(
+        JSON.stringify({ success: true, message: 'No failed records found', total: 0 }),
+        { headers: jsonHeaders },
+      );
     }
 
-    console.log(`[reclassify] Found ${failedRecords.length} failed records to reclassify (dry_run: ${dryRun})`);
+    console.log(
+      `[reclassify] Found ${failedRecords.length} failed records to reclassify (dry_run: ${dryRun})`,
+    );
 
-    const results: { id: string; old_category: string; new_category: string; is_positive: boolean; gp_deal_created: boolean }[] = [];
+    const results: {
+      id: string;
+      old_category: string;
+      new_category: string;
+      is_positive: boolean;
+      gp_deal_created: boolean;
+    }[] = [];
 
     for (let i = 0; i < failedRecords.length; i += BATCH_SIZE) {
       const batch = failedRecords.slice(i, i + BATCH_SIZE);
@@ -225,12 +292,18 @@ Deno.serve(async (req) => {
 
           // GP automation for activated categories on GP campaigns
           const campaignNameLower = (record.campaign_name || '').toLowerCase();
-          const isGPCampaign = campaignNameLower.includes('gp');
+          const _isGPBuyerCampaign =
+            campaignNameLower.includes('gp') && campaignNameLower.includes('buyer');
+          const isGPCampaign =
+            campaignNameLower.includes('gp') && !campaignNameLower.includes('buyer');
           const isActivated = ACTIVATED_CATEGORIES.includes(classification.category);
 
           if (isGPCampaign && isActivated) {
             const contactEmail = record.sl_lead_email || record.from_email || record.to_email;
-            const contactName = [record.lead_first_name, record.lead_last_name].filter(Boolean).join(' ') || record.to_name || null;
+            const contactName =
+              [record.lead_first_name, record.lead_last_name].filter(Boolean).join(' ') ||
+              record.to_name ||
+              null;
             const companyName = record.lead_company_name || null;
             const contactPhone = record.lead_phone || record.lead_mobile || null;
 
@@ -248,11 +321,14 @@ Deno.serve(async (req) => {
 
               if (existing) {
                 gpDealId = existing.id;
-                await supabase.from('listings').update({
-                  smartlead_reply_inbox_id: record.id,
-                  smartlead_replied_at: record.time_replied || new Date().toISOString(),
-                  smartlead_ai_category: classification.category,
-                }).eq('id', gpDealId);
+                await supabase
+                  .from('listings')
+                  .update({
+                    smartlead_reply_inbox_id: record.id,
+                    smartlead_replied_at: record.time_replied || new Date().toISOString(),
+                    smartlead_ai_category: classification.category,
+                  })
+                  .eq('id', gpDealId);
               } else {
                 const { data: newDeal } = await supabase
                   .from('listings')
@@ -283,7 +359,10 @@ Deno.serve(async (req) => {
 
               if (gpDealId) {
                 resultEntry.gp_deal_created = true;
-                await supabase.from('smartlead_reply_inbox').update({ linked_deal_id: gpDealId }).eq('id', record.id);
+                await supabase
+                  .from('smartlead_reply_inbox')
+                  .update({ linked_deal_id: gpDealId })
+                  .eq('id', record.id);
 
                 // Add to calling list if phone exists
                 if (contactPhone) {
@@ -296,17 +375,20 @@ Deno.serve(async (req) => {
                     .maybeSingle();
 
                   if (gpList?.id) {
-                    await supabase.from('contact_list_members').upsert({
-                      list_id: gpList.id,
-                      contact_email: contactEmail,
-                      contact_name: contactName,
-                      contact_phone: contactPhone,
-                      contact_company: companyName,
-                      contact_role: record.lead_title || null,
-                      entity_type: 'gp_partner_deal',
-                      entity_id: gpDealId,
-                      removed_at: null,
-                    }, { onConflict: 'list_id,contact_email', ignoreDuplicates: false });
+                    await supabase.from('contact_list_members').upsert(
+                      {
+                        list_id: gpList.id,
+                        contact_email: contactEmail,
+                        contact_name: contactName,
+                        contact_phone: contactPhone,
+                        contact_company: companyName,
+                        contact_role: record.lead_title || null,
+                        entity_type: 'gp_partner_deal',
+                        entity_id: gpDealId,
+                        removed_at: null,
+                      },
+                      { onConflict: 'list_id,contact_email', ignoreDuplicates: false },
+                    );
                   }
                 }
               }
@@ -319,7 +401,7 @@ Deno.serve(async (req) => {
 
       // Delay between batches
       if (i + BATCH_SIZE < failedRecords.length) {
-        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
       }
     }
 
@@ -327,22 +409,31 @@ Deno.serve(async (req) => {
       success: true,
       dry_run: dryRun,
       total: results.length,
-      reclassified: results.filter(r => r.new_category !== 'neutral').length,
-      still_neutral: results.filter(r => r.new_category === 'neutral').length,
-      positive: results.filter(r => r.is_positive).length,
-      gp_deals_created: results.filter(r => r.gp_deal_created).length,
-      by_category: results.reduce((acc, r) => {
-        acc[r.new_category] = (acc[r.new_category] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
+      reclassified: results.filter((r) => r.new_category !== 'neutral').length,
+      still_neutral: results.filter((r) => r.new_category === 'neutral').length,
+      positive: results.filter((r) => r.is_positive).length,
+      gp_deals_created: results.filter((r) => r.gp_deal_created).length,
+      by_category: results.reduce(
+        (acc, r) => {
+          acc[r.new_category] = (acc[r.new_category] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
       results,
     };
 
-    console.log(`[reclassify] Complete:`, JSON.stringify({ ...summary, results: `${results.length} items` }));
+    console.log(
+      `[reclassify] Complete:`,
+      JSON.stringify({ ...summary, results: `${results.length} items` }),
+    );
 
     return new Response(JSON.stringify(summary), { headers: jsonHeaders });
   } catch (err) {
     console.error('[reclassify] Error:', err);
-    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Internal error' }), { status: 500, headers: jsonHeaders });
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : 'Internal error' }),
+      { status: 500, headers: jsonHeaders },
+    );
   }
 });

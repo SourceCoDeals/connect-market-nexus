@@ -30,6 +30,11 @@ interface InlineContact {
   name?: string;
   email?: string;
   company?: string;
+  /** Optional attribution fields — emitted as PhoneBurner custom fields so
+   * the webhook can match the call back to the originating record. */
+  valuation_lead_id?: string;
+  listing_id?: string;
+  contact_id?: string;
 }
 
 interface PushRequest {
@@ -148,14 +153,11 @@ async function resolveFromBuyerContacts(
   supabase: ReturnType<typeof createClient>,
   ids: string[],
 ): Promise<ResolvedContact[]> {
-  // Read from unified contacts table instead of legacy buyer_contacts.
-  // last_call_attempt_at is the actual dial history used by the skipRecent
-  // filter — not updated_at, which advances on any contact edit and would
-  // suppress freshly-enriched rows from being pushed.
+  // Read from unified contacts table instead of legacy buyer_contacts
   const { data: contacts } = await supabase
     .from('contacts')
     .select(
-      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, last_call_attempt_at',
+      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, updated_at',
     )
     .in('id', ids)
     .eq('archived', false);
@@ -202,7 +204,7 @@ async function resolveFromBuyerContacts(
       title: string | null;
       remarketing_buyer_id: string | null;
       listing_id: string | null;
-      last_call_attempt_at: string | null;
+      updated_at: string | null;
     }) => {
       const buyer = c.remarketing_buyer_id ? buyerMap.get(c.remarketing_buyer_id) : null;
       const listing = c.listing_id ? listingMap.get(c.listing_id) : null;
@@ -243,7 +245,7 @@ async function resolveFromBuyerContacts(
         title: c.title,
         company: buyer?.company_name || null,
         source_entity: 'buyer_contact',
-        last_contacted_date: c.last_call_attempt_at,
+        last_contacted_date: c.updated_at,
         contact_id: c.id,
         listing_id: c.listing_id,
         remarketing_buyer_id: c.remarketing_buyer_id,
@@ -257,12 +259,11 @@ async function resolveFromBuyers(
   supabase: ReturnType<typeof createClient>,
   buyerIds: string[],
 ): Promise<ResolvedContact[]> {
-  // Read from unified contacts table. See resolveFromBuyerContacts for why
-  // last_call_attempt_at (not updated_at) backs the skipRecent filter.
+  // Read from unified contacts table
   const { data: allContacts } = await supabase
     .from('contacts')
     .select(
-      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, is_primary_at_firm, last_call_attempt_at',
+      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, is_primary_at_firm, updated_at',
     )
     .in('remarketing_buyer_id', buyerIds)
     .eq('archived', false);
@@ -308,7 +309,7 @@ async function resolveFromBuyers(
     remarketing_buyer_id: string | null;
     listing_id: string | null;
     is_primary_at_firm: boolean | null;
-    last_call_attempt_at: string | null;
+    updated_at: string | null;
   }
 
   const typedContacts = (allContacts || []) as BuyerContactRow[];
@@ -355,7 +356,7 @@ async function resolveFromBuyers(
       title: c.title,
       company: buyer?.company_name || null,
       source_entity: 'buyer_contact',
-      last_contacted_date: c.last_call_attempt_at,
+      last_contacted_date: c.updated_at,
       contact_id: c.id,
       listing_id: c.listing_id,
       remarketing_buyer_id: c.remarketing_buyer_id,
@@ -405,52 +406,6 @@ async function resolveFromListings(
 
   if (!listings?.length) return [];
 
-  // Pull the structured phone fields from each listing's primary seller
-  // contact. listings.main_contact_phone only ever holds one number, so
-  // without this join the dialer push drops mobile_phone_2/3 entered via
-  // the "+ Add Phone Number" UI and click-to-dial on the 2nd/3rd phone
-  // silently falls back to the first. Matches the fix already applied to
-  // resolveFromContactListMembers.
-  const { data: sellerContacts } = await supabase
-    .from('contacts')
-    .select(
-      'id, listing_id, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, is_primary_seller_contact, created_at, last_call_attempt_at',
-    )
-    .in('listing_id', listingIds)
-    .eq('contact_type', 'seller')
-    .eq('archived', false);
-
-  interface SellerContactRow {
-    id: string;
-    listing_id: string;
-    phone: string | null;
-    mobile_phone_1: string | null;
-    mobile_phone_2: string | null;
-    mobile_phone_3: string | null;
-    office_phone: string | null;
-    is_primary_seller_contact: boolean | null;
-    created_at: string | null;
-    last_call_attempt_at: string | null;
-  }
-
-  // Pick one seller contact per listing, preferring the flagged primary and
-  // otherwise the oldest — mirrors save_primary_seller_contact's resolution
-  // order so reads and writes converge on the same row.
-  const sellerByListing = new Map<string, SellerContactRow>();
-  for (const c of (sellerContacts || []) as SellerContactRow[]) {
-    const existing = sellerByListing.get(c.listing_id);
-    if (!existing) {
-      sellerByListing.set(c.listing_id, c);
-      continue;
-    }
-    const existingScore =
-      (existing.is_primary_seller_contact ? 1 : 0) * 1e18 -
-      new Date(existing.created_at || 0).getTime();
-    const candidateScore =
-      (c.is_primary_seller_contact ? 1 : 0) * 1e18 - new Date(c.created_at || 0).getTime();
-    if (candidateScore > existingScore) sellerByListing.set(c.listing_id, c);
-  }
-
   return listings
     .filter((l: { main_contact_name?: string }) => l.main_contact_name)
     .map(
@@ -475,22 +430,20 @@ async function resolveFromListings(
 
         customFields.push(...buildDealCustomFields(l));
 
-        const seller = sellerByListing.get(l.id);
-
         return {
           id: `listing-${l.id}`,
           name: l.main_contact_name!,
-          phone: seller?.phone ?? l.main_contact_phone ?? null,
-          mobile_phone_1: seller?.mobile_phone_1 ?? null,
-          mobile_phone_2: seller?.mobile_phone_2 ?? null,
-          mobile_phone_3: seller?.mobile_phone_3 ?? null,
-          office_phone: seller?.office_phone ?? null,
+          phone: l.main_contact_phone || null,
+          mobile_phone_1: null,
+          mobile_phone_2: null,
+          mobile_phone_3: null,
+          office_phone: null,
           email: l.main_contact_email || null,
           title: l.main_contact_title || null,
           company: l.internal_company_name || l.title || null,
           source_entity: `listing:${l.deal_source || 'unknown'}`,
-          last_contacted_date: seller?.last_call_attempt_at ?? null,
-          contact_id: seller?.id ?? null,
+          last_contacted_date: null,
+          contact_id: null,
           listing_id: l.id,
           remarketing_buyer_id: null,
           extra_context: customFields,
@@ -503,14 +456,13 @@ async function resolveFromLeads(
   supabase: ReturnType<typeof createClient>,
   leadIds: string[],
 ): Promise<ResolvedContact[]> {
-  const { data: leads } = await supabase
+  // Try inbound_leads first
+  const { data: inbound } = await supabase
     .from('inbound_leads')
     .select('id, name, email, phone_number, company_name, role')
     .in('id', leadIds);
 
-  if (!leads?.length) return [];
-
-  return leads.map(
+  const found: ResolvedContact[] = (inbound || []).map(
     (l: {
       id: string;
       name?: string;
@@ -536,6 +488,49 @@ async function resolveFromLeads(
       remarketing_buyer_id: null,
     }),
   );
+
+  // For ids that didn't match inbound_leads, try valuation_leads as a fallback.
+  const matchedIds = new Set((inbound || []).map((l: { id: string }) => l.id));
+  const remaining = leadIds.filter((id) => !matchedIds.has(id));
+
+  if (remaining.length > 0) {
+    const { data: valuation } = await supabase
+      .from('valuation_leads')
+      .select('id, first_name, last_name, email, phone, company_name, business_name, role, title')
+      .in('id', remaining);
+
+    for (const l of (valuation || []) as Array<{
+      id: string;
+      first_name?: string | null;
+      last_name?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      company_name?: string | null;
+      business_name?: string | null;
+      role?: string | null;
+      title?: string | null;
+    }>) {
+      found.push({
+        id: `valuation-lead-${l.id}`,
+        name: [l.first_name, l.last_name].filter(Boolean).join(' ') || l.email || 'Unknown',
+        phone: l.phone || null,
+        mobile_phone_1: null,
+        mobile_phone_2: null,
+        mobile_phone_3: null,
+        office_phone: null,
+        email: l.email || null,
+        title: l.title || l.role || null,
+        company: l.company_name || l.business_name || null,
+        source_entity: 'valuation_lead',
+        last_contacted_date: null,
+        contact_id: null,
+        listing_id: null,
+        remarketing_buyer_id: null,
+      });
+    }
+  }
+
+  return found;
 }
 
 async function resolveFromContactListMembers(
@@ -545,58 +540,12 @@ async function resolveFromContactListMembers(
   const { data: members } = await supabase
     .from('contact_list_members')
     .select(
-      'id, contact_id, contact_name, contact_email, contact_phone, contact_company, contact_role, entity_type, entity_id',
+      'id, contact_name, contact_email, contact_phone, contact_company, contact_role, entity_type, entity_id',
     )
     .in('id', memberIds)
     .is('removed_at', null);
 
   if (!members?.length) return [];
-
-  // Pull fresh structured phone fields from contacts for members linked by
-  // contact_id. contact_list_members.contact_phone is a snapshot captured at
-  // add-time and goes stale whenever the underlying contact is enriched;
-  // without this join the push would send the stale snapshot even when the
-  // "With Phone" stat on the UI (which reads fresh fields) shows a number.
-  const contactIds = [
-    ...new Set(
-      members
-        .map((m: { contact_id: string | null }) => m.contact_id)
-        .filter((id: string | null): id is string => !!id),
-    ),
-  ];
-  let contactPhoneMap = new Map<
-    string,
-    {
-      phone: string | null;
-      mobile_phone_1: string | null;
-      mobile_phone_2: string | null;
-      mobile_phone_3: string | null;
-      office_phone: string | null;
-      last_call_attempt_at: string | null;
-    }
-  >();
-  if (contactIds.length) {
-    const { data: contacts } = await supabase
-      .from('contacts')
-      .select(
-        'id, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, last_call_attempt_at',
-      )
-      .in('id', contactIds)
-      .eq('archived', false);
-    contactPhoneMap = new Map(
-      (contacts || []).map(
-        (c: {
-          id: string;
-          phone: string | null;
-          mobile_phone_1: string | null;
-          mobile_phone_2: string | null;
-          mobile_phone_3: string | null;
-          office_phone: string | null;
-          last_call_attempt_at: string | null;
-        }) => [c.id, c],
-      ),
-    );
-  }
 
   // Collect listing IDs from deal-type members for deal data enrichment
   const LISTING_ENTITY_TYPES = ['sourceco_deal', 'gp_partner_deal', 'referral_deal', 'listing'];
@@ -621,7 +570,6 @@ async function resolveFromContactListMembers(
   return members.map(
     (m: {
       id: string;
-      contact_id: string | null;
       contact_name: string | null;
       contact_email: string;
       contact_phone: string | null;
@@ -643,24 +591,20 @@ async function resolveFromContactListMembers(
         customFields.push(...buildDealCustomFields(listing));
       }
 
-      const fresh = m.contact_id ? contactPhoneMap.get(m.contact_id) : undefined;
-
       return {
         id: m.id,
         name: m.contact_name || 'Unknown',
-        // Fall back to the snapshot only when no linked contact row is
-        // available (inbound leads, lists built from deal-only entities, etc.).
-        phone: fresh?.phone ?? m.contact_phone,
-        mobile_phone_1: fresh?.mobile_phone_1 ?? null,
-        mobile_phone_2: fresh?.mobile_phone_2 ?? null,
-        mobile_phone_3: fresh?.mobile_phone_3 ?? null,
-        office_phone: fresh?.office_phone ?? null,
+        phone: m.contact_phone,
+        mobile_phone_1: null,
+        mobile_phone_2: null,
+        mobile_phone_3: null,
+        office_phone: null,
         email: m.contact_email,
         title: m.contact_role,
         company: m.contact_company,
         source_entity: `contact_list:${m.entity_type}`,
-        last_contacted_date: fresh?.last_call_attempt_at ?? null,
-        contact_id: m.contact_id,
+        last_contacted_date: null,
+        contact_id: null,
         listing_id: LISTING_ENTITY_TYPES.includes(m.entity_type) ? m.entity_id : null,
         remarketing_buyer_id: null,
         extra_context: customFields,
@@ -739,24 +683,39 @@ Deno.serve(async (req: Request) => {
     let contacts: ResolvedContact[];
 
     if (inlineContacts.length > 0) {
-      // Direct contact details provided — no DB lookup needed
-      contacts = inlineContacts.map((c: InlineContact, i: number) => ({
-        id: `inline-${i}`,
-        name: c.name || 'Unknown',
-        phone: c.phone || null,
-        mobile_phone_1: null,
-        mobile_phone_2: null,
-        mobile_phone_3: null,
-        office_phone: null,
-        email: c.email || null,
-        title: null,
-        company: c.company || null,
-        source_entity: 'inline',
-        last_contacted_date: null,
-        contact_id: null,
-        listing_id: null,
-        remarketing_buyer_id: null,
-      }));
+      // Direct contact details provided — no DB lookup needed.
+      // Stamp valuation_lead_id / listing_id / contact_id as PB custom fields
+      // so the webhook can attribute the resulting call back to the lead.
+      contacts = inlineContacts.map((c: InlineContact, i: number) => {
+        const extra: PbCustomField[] = [];
+        if (c.valuation_lead_id) {
+          extra.push({ name: 'Valuation Lead ID', type: 1, value: c.valuation_lead_id });
+        }
+        if (c.listing_id) {
+          extra.push({ name: 'Listing ID', type: 1, value: c.listing_id });
+        }
+        if (c.contact_id) {
+          extra.push({ name: 'SourceCo ID', type: 1, value: c.contact_id });
+        }
+        return {
+          id: `inline-${i}`,
+          name: c.name || 'Unknown',
+          phone: c.phone || null,
+          mobile_phone_1: null,
+          mobile_phone_2: null,
+          mobile_phone_3: null,
+          office_phone: null,
+          email: c.email || null,
+          title: null,
+          company: c.company || null,
+          source_entity: 'inline',
+          last_contacted_date: null,
+          contact_id: c.contact_id || null,
+          listing_id: c.listing_id || null,
+          remarketing_buyer_id: null,
+          extra_context: extra.length ? extra : undefined,
+        };
+      });
     } else if (!entityIds.length) {
       return new Response(JSON.stringify({ error: 'No entities provided' }), {
         status: 400,
@@ -793,6 +752,59 @@ Deno.serve(async (req: Request) => {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // ─── Enrich with Deal Owner ───
+    // Collect all listing_ids from resolved contacts
+    const allListingIds = [
+      ...new Set(contacts.map((c) => c.listing_id).filter(Boolean)),
+    ] as string[];
+
+    if (allListingIds.length) {
+      // Fetch deal_owner_id for each listing
+      const { data: ownerListings } = await supabase
+        .from('listings')
+        .select('id, deal_owner_id')
+        .in('id', allListingIds)
+        .not('deal_owner_id', 'is', null);
+
+      if (ownerListings?.length) {
+        const ownerUserIds = [
+          ...new Set(ownerListings.map((l: { deal_owner_id: string }) => l.deal_owner_id)),
+        ];
+
+        const { data: ownerProfiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', ownerUserIds);
+
+        const profileMap = new Map<string, string>(
+          (ownerProfiles || []).map(
+            (p: { id: string; first_name: string | null; last_name: string | null }) => [
+              p.id,
+              [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown',
+            ],
+          ),
+        );
+
+        const listingOwnerMap = new Map<string, string>();
+        for (const l of ownerListings as { id: string; deal_owner_id: string }[]) {
+          const ownerName = profileMap.get(l.deal_owner_id);
+          if (ownerName) listingOwnerMap.set(l.id, ownerName);
+        }
+
+        // Inject "Deal Owner" custom field into each contact
+        for (const contact of contacts) {
+          if (contact.listing_id && listingOwnerMap.has(contact.listing_id)) {
+            if (!contact.extra_context) contact.extra_context = [];
+            contact.extra_context.push({
+              name: 'Deal Owner',
+              type: 1,
+              value: listingOwnerMap.get(contact.listing_id)!,
+            });
+          }
+        }
+      }
     }
 
     // Filter: skip recently contacted + no phone

@@ -65,12 +65,10 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Include lead_name / lead_email so we can still notify unauthenticated
-    // leads (webflow / landing-page submissions have user_id IS NULL).
     const { data: request, error: reqError } = await supabase
       .from('connection_requests')
       .select(
-        `id, user_id, listing_id, lead_name, lead_email, user:profiles!connection_requests_user_id_profiles_fkey(first_name, last_name, email), listing:listings!connection_requests_listing_id_fkey(title)`,
+        `id, user_id, listing_id, user:profiles!connection_requests_user_id_profiles_fkey(first_name, last_name, email), listing:listings!connection_requests_listing_id_fkey(title)`,
       )
       .eq('id', connection_request_id)
       .single();
@@ -88,22 +86,15 @@ const handler = async (req: Request): Promise<Response> => {
       email?: string;
     } | null;
     const listing = request.listing as { title?: string } | null;
-    const leadEmail = (request as { lead_email?: string | null }).lead_email ?? null;
-    const leadName = (request as { lead_name?: string | null }).lead_name ?? null;
 
-    // Prefer the matched profile; fall back to the lead contact fields so
-    // lead-only requests still receive admin message notifications.
-    const recipientEmail = buyer?.email || leadEmail;
-    if (!recipientEmail) {
+    if (!buyer?.email) {
       return new Response(JSON.stringify({ success: false, error: 'Buyer email not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
-    const buyerName = buyer
-      ? `${buyer.first_name || ''} ${buyer.last_name || ''}`.trim() || 'there'
-      : leadName || 'there';
+    const buyerName = `${buyer.first_name || ''} ${buyer.last_name || ''}`.trim() || 'there';
     const dealTitle = listing?.title || 'a deal';
     const preview = (message_preview || '').substring(0, 200);
     const loginUrl = 'https://marketplace.sourcecodeals.com/messages';
@@ -116,13 +107,13 @@ const handler = async (req: Request): Promise<Response> => {
       dealTitle,
       preview,
       loginUrl,
-      recipientEmail,
+      buyer.email,
       admin_name,
     );
 
     const result = await sendEmail({
       templateName: 'admin_message_notification',
-      to: recipientEmail,
+      to: buyer.email,
       toName: buyerName,
       subject,
       htmlContent,
@@ -141,7 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         message_id: result.providerMessageId,
-        recipient: recipientEmail,
+        recipient: buyer.email,
         correlation_id: result.correlationId,
       }),
       { headers: { 'Content-Type': 'application/json', ...corsHeaders } },

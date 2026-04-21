@@ -37,11 +37,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  // CTO audit: accept the secret ONLY from the header, never the query
-  // param. Query params get logged in access logs and browser history,
-  // leaking the shared secret. Header-only is the canonical webhook auth
-  // convention.
-  const providedSecret = req.headers.get('x-webhook-secret');
+  const providedSecret =
+    req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
 
   if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
     console.warn('[smartlead-webhook] Invalid webhook secret');
@@ -151,85 +148,9 @@ Deno.serve(async (req) => {
         .limit(1);
     }
 
-    // INTERESTED event → auto-create a "call back today" task so the SDR
-    // doesn't have to watch the inbox. Scoped to contacts that exist in the
-    // CRM (resolveOutreachContact semantics) — if the lead isn't a CRM
-    // contact, we skip silently. Dedup by tag so repeat INTERESTED events
-    // for the same lead don't pile up duplicate tasks.
-    if ((eventType === 'INTERESTED' || eventType === 'EMAIL_REPLIED') && leadEmail) {
-      try {
-        const { data: contact } = await supabase
-          .from('contacts')
-          .select('id, first_name, last_name, email, archived')
-          .ilike('email', leadEmail)
-          .eq('archived', false)
-          .maybeSingle();
-
-        if (contact?.id) {
-          const name =
-            [contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email;
-          const tag = `auto:smartlead-${eventType.toLowerCase()}:${contact.id}`;
-
-          // Idempotent — skip if an open task with the same marker tag exists.
-          const { data: existing } = await supabase
-            .from('daily_standup_tasks')
-            .select('id')
-            .contains('tags', [tag])
-            .in('status', ['pending', 'in_progress'])
-            .limit(1);
-
-          if (!existing || existing.length === 0) {
-            const title =
-              eventType === 'INTERESTED'
-                ? `Call back: ${name} replied INTERESTED`
-                : `Call back: ${name} replied to Smartlead`;
-            await supabase.from('daily_standup_tasks').insert({
-              title,
-              description: `Auto-created from Smartlead ${eventType} event on ${new Date().toISOString().slice(0, 10)}.`,
-              task_type: 'call',
-              status: 'pending',
-              due_date: new Date().toISOString().slice(0, 10),
-              is_manual: false,
-              priority_score: eventType === 'INTERESTED' ? 95 : 75,
-              tags: [tag, 'smartlead', eventType.toLowerCase()],
-              entity_type: 'contact',
-              entity_id: contact.id,
-            });
-            console.log(
-              `[smartlead-webhook] Auto-task created for ${eventType} reply from ${leadEmail}`,
-            );
-          }
-        }
-      } catch (err) {
-        // Non-fatal — don't block the webhook on task creation failures.
-        console.warn('[smartlead-webhook] Auto-task creation failed:', err);
-      }
-    }
-
     console.log(
       `[smartlead-webhook] Processed ${eventType} for campaign ${campaignId}, lead ${leadEmail}`,
     );
-
-    // Real-time sync: kick off sync-smartlead-messages for this one campaign so
-    // the new event lands in smartlead_messages within ~1 minute instead of
-    // waiting up to 20 min for the next cron run. Fire-and-forget — we don't
-    // block the webhook response on it, and failures are self-healing (the
-    // regular cron picks up missed events on its next pass).
-    if (campaignId) {
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-      if (serviceRoleKey) {
-        fetch(`${supabaseUrl}/functions/v1/sync-smartlead-messages`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${serviceRoleKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ campaign_id: Number(campaignId), source: 'webhook-trigger' }),
-        }).catch((err) => {
-          console.warn('[smartlead-webhook] sync trigger failed (non-fatal):', err);
-        });
-      }
-    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: jsonHeaders,

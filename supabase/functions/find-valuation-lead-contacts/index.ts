@@ -4,15 +4,18 @@
  * Auto-discovers LinkedIn URL and phone number for a valuation lead.
  * Called fire-and-forget by receive-valuation-lead after a new lead is saved.
  *
- * Pipeline:
+ * Pipeline (UPGRADED for username/single-token name backlog):
  *   1. Check contact_search_cache for recent results (7-day window)
  *   2. Skip if lead already has both linkedin_url and phone
- *   3. Find person's LinkedIn via Serper Google search ("full_name" site:linkedin.com/in)
- *      - If website/business_name available, refine search with company context
- *   4. If LinkedIn found → Blitz phone enrichment (primary, synchronous)
- *   5. If Blitz misses → Clay waterfall fallback (async — results arrive via Clay webhooks)
- *   6. Update valuation_leads row with whatever we found synchronously
- *   7. Cache results for 7 days
+ *   3. Normalize identity: derive person name from email localpart if `full_name`
+ *      looks like a username (single token / contains digits / dot-separated).
+ *      Derive company domain from non-generic email if no website is set.
+ *   4. Find person's LinkedIn via Serper Google search using the strongest
+ *      available query (company-context first, then derived-name, then raw name).
+ *   5. If LinkedIn found → Blitz phone enrichment (primary, synchronous)
+ *   6. If Blitz misses → Clay waterfall fallback (async — results arrive via Clay webhooks)
+ *   7. Update valuation_leads row with whatever we found synchronously
+ *   8. Cache results for 7 days
  *
  * POST /find-valuation-lead-contacts
  * Body: { valuation_lead_id, full_name, email, website?, business_name? }
@@ -33,6 +36,49 @@ import {
 const CACHE_TTL_DAYS = 7;
 /** Sentinel workspace_id for system/service-initiated Clay requests */
 const SYSTEM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
+
+/** Generic / free / consumer email domains — never use as company domain. */
+const GENERIC_EMAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'yahoo.com',
+  'yahoo.com.au',
+  'hotmail.com',
+  'hotmail.se',
+  'outlook.com',
+  'aol.com',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'live.com',
+  'msn.com',
+  'mail.com',
+  'zoho.com',
+  'yandex.com',
+  'gmx.com',
+  'gmx.net',
+  'inbox.com',
+  'rocketmail.com',
+  'ymail.com',
+  'protonmail.com',
+  'proton.me',
+  'pm.me',
+  'fastmail.com',
+  'tutanota.com',
+  'hey.com',
+  'comcast.net',
+  'att.net',
+  'sbcglobal.net',
+  'verizon.net',
+  'cox.net',
+  'charter.net',
+  'earthlink.net',
+  'optonline.net',
+  'frontier.com',
+  'windstream.net',
+  'mediacombb.net',
+  'bellsouth.net',
+]);
 
 interface FindValuationLeadContactsRequest {
   valuation_lead_id: string;
@@ -83,15 +129,23 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!body.valuation_lead_id || !body.full_name?.trim()) {
-    return new Response(
-      JSON.stringify({ error: 'valuation_lead_id and full_name are required' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ error: 'valuation_lead_id and full_name are required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   const startTime = Date.now();
+
+  // ── Identity normalization ────────────────────────────────────────────────
+  const rawName = body.full_name.trim();
+  const normalized = normalizeIdentity(rawName, body.email, body.website, body.business_name);
+  const searchName = normalized.searchName;
+  const companyContext = normalized.companyContext;
+  const effectiveDomain = normalized.effectiveDomain;
+
   console.log(
-    `[find-valuation-lead-contacts] Starting for lead=${body.valuation_lead_id} name="${body.full_name}" email="${body.email}"`,
+    `[find-valuation-lead-contacts] Starting for lead=${body.valuation_lead_id} raw_name="${rawName}" search_name="${searchName}" email="${body.email}" company_ctx="${companyContext || ''}" domain="${effectiveDomain || ''}"`,
   );
 
   try {
@@ -104,10 +158,10 @@ Deno.serve(async (req: Request) => {
 
     if (fetchError) {
       console.error('[find-valuation-lead-contacts] Failed to fetch lead:', fetchError.message);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Lead not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Lead not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const needsLinkedIn = !existingLead.linkedin_url;
@@ -137,11 +191,11 @@ Deno.serve(async (req: Request) => {
     let clayFallbackSent = false;
 
     // Step 2: Check cache for recent results (7-day TTL)
-    const cacheKey = buildCacheKey(body.full_name, body.email);
+    const cacheKey = buildCacheKey(searchName, body.email);
     const cached = await getCachedResult(supabaseAdmin, cacheKey);
 
     if (cached) {
-      console.log(`[find-valuation-lead-contacts] Cache hit for "${body.full_name}"`);
+      console.log(`[find-valuation-lead-contacts] Cache hit for "${searchName}"`);
       fromCache = true;
       if (needsLinkedIn && cached.linkedin_url) linkedinUrl = cached.linkedin_url;
       if (needsPhone && cached.phone) phone = cached.phone;
@@ -150,7 +204,7 @@ Deno.serve(async (req: Request) => {
 
     // Step 3: Find LinkedIn profile via Google search (if not cached)
     if (needsLinkedIn && !linkedinUrl) {
-      linkedinUrl = await findPersonLinkedIn(body.full_name, body.business_name, body.website);
+      linkedinUrl = await findPersonLinkedIn(searchName, rawName, companyContext, body.website);
     }
 
     // Step 4: Find phone + work email via Blitz (primary) if we have a LinkedIn URL
@@ -161,9 +215,7 @@ Deno.serve(async (req: Request) => {
           const phoneRes = await findPhone(linkedinUrl);
           if (phoneRes.ok && phoneRes.data?.phone) {
             phone = phoneRes.data.phone;
-            console.log(
-              `[find-valuation-lead-contacts] Found phone for "${body.full_name}" via Blitz`,
-            );
+            console.log(`[find-valuation-lead-contacts] Found phone for "${searchName}" via Blitz`);
           }
         } catch (phoneErr) {
           console.warn(
@@ -182,7 +234,7 @@ Deno.serve(async (req: Request) => {
             if (foundEmail !== body.email.trim().toLowerCase()) {
               workEmail = foundEmail;
               console.log(
-                `[find-valuation-lead-contacts] Found work email for "${body.full_name}" via Blitz: ${workEmail}`,
+                `[find-valuation-lead-contacts] Found work email for "${searchName}" via Blitz: ${workEmail}`,
               );
             } else {
               console.log(
@@ -201,10 +253,9 @@ Deno.serve(async (req: Request) => {
     // Step 5: Clay waterfall fallback — if we still need phone, LinkedIn, or email
     const stillNeedsPhone = needsPhone && !phone;
     const stillNeedsWorkEmail = needsWorkEmail && !workEmail;
-    const nameParts = body.full_name.trim().split(/\s+/);
+    const nameParts = searchName.split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
-    const domain = extractDomain(body.website);
 
     if (stillNeedsPhone && linkedinUrl) {
       // We have LinkedIn but no phone → send to Clay phone waterfall
@@ -231,23 +282,37 @@ Deno.serve(async (req: Request) => {
       if (sent) clayFallbackSent = true;
     }
 
-    if (needsLinkedIn && !linkedinUrl && domain) {
+    if (needsLinkedIn && !linkedinUrl && effectiveDomain) {
       // We have name + domain but no LinkedIn → send to Clay name+domain waterfall
       clayFallbackSent = await sendClayNameDomainRequest(
         supabaseAdmin,
         body.valuation_lead_id,
         firstName,
         lastName,
-        domain,
+        effectiveDomain,
         body.business_name,
       );
     }
 
-    // Step 6: Update valuation_leads with whatever we found synchronously
+    // Step 6: Update valuation_leads with whatever we found synchronously.
+    // We track which fields were *newly persisted* (i.e. lead row didn't have
+    // them before this call) so the bulk worker can produce honest counters.
     const updates: Record<string, unknown> = {};
-    if (linkedinUrl && needsLinkedIn) updates.linkedin_url = linkedinUrl;
-    if (phone && needsPhone) updates.phone = phone;
-    if (workEmail && needsWorkEmail) updates.work_email = workEmail;
+    let linkedinPersisted = false;
+    let phonePersisted = false;
+    let workEmailPersisted = false;
+    if (linkedinUrl && needsLinkedIn) {
+      updates.linkedin_url = linkedinUrl;
+      linkedinPersisted = true;
+    }
+    if (phone && needsPhone) {
+      updates.phone = phone;
+      phonePersisted = true;
+    }
+    if (workEmail && needsWorkEmail) {
+      updates.work_email = workEmail;
+      workEmailPersisted = true;
+    }
 
     if (Object.keys(updates).length > 0) {
       updates.updated_at = new Date().toISOString();
@@ -258,10 +323,11 @@ Deno.serve(async (req: Request) => {
         .eq('id', body.valuation_lead_id);
 
       if (updateError) {
-        console.error(
-          '[find-valuation-lead-contacts] Failed to update lead:',
-          updateError.message,
-        );
+        console.error('[find-valuation-lead-contacts] Failed to update lead:', updateError.message);
+        // Update failed — don't claim we persisted anything.
+        linkedinPersisted = false;
+        phonePersisted = false;
+        workEmailPersisted = false;
       } else {
         console.log(
           `[find-valuation-lead-contacts] Updated lead ${body.valuation_lead_id}: ${JSON.stringify(updates)}`,
@@ -271,7 +337,7 @@ Deno.serve(async (req: Request) => {
 
     // Step 7: Cache results (even partial) for 7 days
     if (!fromCache) {
-      await setCachedResult(supabaseAdmin, cacheKey, body.full_name, {
+      await setCachedResult(supabaseAdmin, cacheKey, searchName, {
         linkedin_url: linkedinUrl,
         phone,
         work_email: workEmail,
@@ -286,9 +352,14 @@ Deno.serve(async (req: Request) => {
         fn: 'find-valuation-lead-contacts',
         lead_id: body.valuation_lead_id,
         email: body.email,
+        raw_name: rawName,
+        search_name: searchName,
         linkedin_found: !!linkedinUrl,
         phone_found: !!phone,
         work_email_found: !!workEmail,
+        linkedin_persisted: linkedinPersisted,
+        phone_persisted: phonePersisted,
+        work_email_persisted: workEmailPersisted,
         needed_linkedin: needsLinkedIn,
         needed_phone: needsPhone,
         needed_work_email: needsWorkEmail,
@@ -304,6 +375,11 @@ Deno.serve(async (req: Request) => {
         linkedin_url: linkedinUrl,
         phone,
         work_email: workEmail,
+        // NEW: explicit "did this run write to the lead row" booleans so the
+        // bulk worker can count progress accurately even on cache hits.
+        linkedin_persisted: linkedinPersisted,
+        phone_persisted: phonePersisted,
+        work_email_persisted: workEmailPersisted,
         skipped: false,
         from_cache: fromCache,
         clay_fallback_sent: clayFallbackSent,
@@ -322,6 +398,82 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
+
+// ─── Identity normalization ──────────────────────────────────────────────────
+
+/**
+ * Decide what name to search with. If the calculator submission gave us a
+ * single token (e.g. "tylermatk", "stevan", "ignacioduron") or a dotted
+ * username (e.g. "levi.shumway"), derive a clean human name from the email
+ * localpart when we can. Also derive a company domain from a non-generic
+ * email when website is missing.
+ */
+function normalizeIdentity(
+  rawName: string,
+  email: string,
+  website?: string,
+  businessName?: string,
+): { searchName: string; companyContext: string | null; effectiveDomain: string | null } {
+  const trimmed = rawName.replace(/\s+/g, ' ').trim();
+  const isLikelyUsername =
+    !trimmed.includes(' ') || /[._]/.test(trimmed) || /\d/.test(trimmed) || trimmed.length < 3;
+
+  let searchName = trimmed;
+  if (isLikelyUsername) {
+    const fromEmail = humanizeFromEmailLocalpart(email);
+    if (fromEmail && fromEmail.includes(' ')) {
+      // Email gave us a multi-token name — prefer it.
+      searchName = fromEmail;
+    } else {
+      // Fall back to humanizing the raw username itself (split CamelCase / dots).
+      const fromRaw = humanizeToken(trimmed);
+      if (fromRaw) searchName = fromRaw;
+    }
+  }
+
+  const websiteDomain = extractDomain(website);
+  const emailDomain = extractEmailDomain(email);
+  const isGenericEmailDomain = emailDomain ? GENERIC_EMAIL_DOMAINS.has(emailDomain) : true;
+
+  const effectiveDomain = websiteDomain
+    ? websiteDomain
+    : !isGenericEmailDomain
+      ? emailDomain
+      : null;
+
+  const companyContext =
+    businessName?.trim() ||
+    extractBusinessFromDomain(website) ||
+    (effectiveDomain ? effectiveDomain.split('.')[0] : null);
+
+  return { searchName, companyContext, effectiveDomain };
+}
+
+/** Convert "levi.shumway" / "levi_shumway" / "leviShumway" → "Levi Shumway". */
+function humanizeToken(token: string): string | null {
+  if (!token) return null;
+  // Strip numbers, split on . _ - or camelCase boundaries
+  const stripped = token.replace(/\d+/g, '');
+  const parts = stripped
+    .split(/[._\-\s]+/)
+    .flatMap((p) => p.replace(/([a-z])([A-Z])/g, '$1 $2').split(/\s+/))
+    .map((p) => p.trim())
+    .filter((p) => p.length > 1);
+  if (parts.length === 0) return null;
+  return parts.map((p) => p[0].toUpperCase() + p.slice(1).toLowerCase()).join(' ');
+}
+
+function humanizeFromEmailLocalpart(email: string): string | null {
+  if (!email || !email.includes('@')) return null;
+  const local = email.split('@')[0];
+  return humanizeToken(local);
+}
+
+function extractEmailDomain(email: string): string | null {
+  if (!email || !email.includes('@')) return null;
+  const domain = email.split('@')[1]?.toLowerCase().trim();
+  return domain || null;
+}
 
 // ─── Cache helpers ───────────────────────────────────────────────────────────
 
@@ -372,39 +524,61 @@ async function setCachedResult(
 
 // ─── LinkedIn search ─────────────────────────────────────────────────────────
 
+/**
+ * Try a sequence of queries from strongest signal → weakest:
+ *   1. searchName + companyContext (best when both present)
+ *   2. rawName    + companyContext (if raw differs and we have ctx)
+ *   3. searchName alone (only if multi-token — single-token bare search is noise)
+ *   4. rawName    alone (only if multi-token)
+ */
 async function findPersonLinkedIn(
-  fullName: string,
-  businessName?: string,
+  searchName: string,
+  rawName: string,
+  companyContext: string | null,
   website?: string,
 ): Promise<string | null> {
-  const cleanName = fullName.trim();
-  if (!cleanName) return null;
-
-  const companyContext = businessName || extractBusinessFromDomain(website) || '';
-
-  if (companyContext) {
-    const contextUrl = await searchLinkedInProfile(
-      `"${cleanName}" "${companyContext}" site:linkedin.com/in`,
-    );
-    if (contextUrl) {
+  const tried = new Set<string>();
+  const tryQuery = async (query: string, label: string): Promise<string | null> => {
+    if (tried.has(query)) return null;
+    tried.add(query);
+    const url = await searchLinkedInProfile(query);
+    if (url) {
       console.log(
-        `[find-valuation-lead-contacts] Found LinkedIn for "${cleanName}" with company context`,
+        `[find-valuation-lead-contacts] Found LinkedIn for "${searchName}" via ${label}: ${query}`,
       );
-      return contextUrl;
     }
+    return url;
+  };
+
+  const ctx = companyContext?.trim() || extractBusinessFromDomain(website) || null;
+
+  // 1. Strongest: searchName + company context
+  if (searchName && ctx) {
+    const u = await tryQuery(`"${searchName}" "${ctx}" site:linkedin.com/in`, 'name+ctx');
+    if (u) return u;
   }
 
-  const nameOnlyUrl = await searchLinkedInProfile(
-    `"${cleanName}" site:linkedin.com/in`,
+  // 2. raw name + company context (if differs)
+  if (rawName && ctx && rawName.toLowerCase() !== searchName.toLowerCase()) {
+    const u = await tryQuery(`"${rawName}" "${ctx}" site:linkedin.com/in`, 'raw+ctx');
+    if (u) return u;
+  }
+
+  // 3. Multi-token bare name (skip single-token: too noisy)
+  if (searchName && searchName.includes(' ')) {
+    const u = await tryQuery(`"${searchName}" site:linkedin.com/in`, 'name-only');
+    if (u) return u;
+  }
+
+  // 4. Raw multi-token bare name (if differs)
+  if (rawName && rawName.includes(' ') && rawName.toLowerCase() !== searchName.toLowerCase()) {
+    const u = await tryQuery(`"${rawName}" site:linkedin.com/in`, 'raw-only');
+    if (u) return u;
+  }
+
+  console.log(
+    `[find-valuation-lead-contacts] No LinkedIn found (tried ${tried.size} query/queries) for search_name="${searchName}" raw_name="${rawName}" ctx="${ctx || ''}"`,
   );
-  if (nameOnlyUrl) {
-    console.log(
-      `[find-valuation-lead-contacts] Found LinkedIn for "${cleanName}" via name-only search`,
-    );
-    return nameOnlyUrl;
-  }
-
-  console.log(`[find-valuation-lead-contacts] No LinkedIn found for "${cleanName}"`);
   return null;
 }
 
@@ -466,16 +640,24 @@ async function sendClayPhoneRequest(
     });
 
     if (insertErr) {
-      console.warn(`[find-valuation-lead-contacts] Clay phone request insert failed: ${insertErr.message}`);
+      console.warn(
+        `[find-valuation-lead-contacts] Clay phone request insert failed: ${insertErr.message}`,
+      );
       return false;
     }
 
     sendToClayPhone({ requestId, linkedinUrl })
       .then((res) => {
-        if (!res.success) console.warn(`[find-valuation-lead-contacts] Clay phone webhook failed: ${res.error}`);
-        else console.log(`[find-valuation-lead-contacts] Clay phone webhook sent for ${firstName} ${lastName}`);
+        if (!res.success)
+          console.warn(`[find-valuation-lead-contacts] Clay phone webhook failed: ${res.error}`);
+        else
+          console.log(
+            `[find-valuation-lead-contacts] Clay phone webhook sent for ${firstName} ${lastName}`,
+          );
       })
-      .catch((err) => console.error(`[find-valuation-lead-contacts] Clay phone webhook error: ${err}`));
+      .catch((err) =>
+        console.error(`[find-valuation-lead-contacts] Clay phone webhook error: ${err}`),
+      );
 
     return true;
   } catch (err) {
@@ -513,16 +695,26 @@ async function sendClayNameDomainRequest(
     });
 
     if (insertErr) {
-      console.warn(`[find-valuation-lead-contacts] Clay name+domain request insert failed: ${insertErr.message}`);
+      console.warn(
+        `[find-valuation-lead-contacts] Clay name+domain request insert failed: ${insertErr.message}`,
+      );
       return false;
     }
 
     sendToClayNameDomain({ requestId, firstName, lastName, domain })
       .then((res) => {
-        if (!res.success) console.warn(`[find-valuation-lead-contacts] Clay name+domain webhook failed: ${res.error}`);
-        else console.log(`[find-valuation-lead-contacts] Clay name+domain webhook sent for ${firstName} ${lastName}`);
+        if (!res.success)
+          console.warn(
+            `[find-valuation-lead-contacts] Clay name+domain webhook failed: ${res.error}`,
+          );
+        else
+          console.log(
+            `[find-valuation-lead-contacts] Clay name+domain webhook sent for ${firstName} ${lastName}`,
+          );
       })
-      .catch((err) => console.error(`[find-valuation-lead-contacts] Clay name+domain webhook error: ${err}`));
+      .catch((err) =>
+        console.error(`[find-valuation-lead-contacts] Clay name+domain webhook error: ${err}`),
+      );
 
     return true;
   } catch (err) {
@@ -560,16 +752,24 @@ async function sendClayLinkedInRequest(
     });
 
     if (insertErr) {
-      console.warn(`[find-valuation-lead-contacts] Clay LinkedIn request insert failed: ${insertErr.message}`);
+      console.warn(
+        `[find-valuation-lead-contacts] Clay LinkedIn request insert failed: ${insertErr.message}`,
+      );
       return false;
     }
 
     sendToClayLinkedIn({ requestId, linkedinUrl })
       .then((res) => {
-        if (!res.success) console.warn(`[find-valuation-lead-contacts] Clay LinkedIn webhook failed: ${res.error}`);
-        else console.log(`[find-valuation-lead-contacts] Clay LinkedIn webhook sent for ${firstName} ${lastName}`);
+        if (!res.success)
+          console.warn(`[find-valuation-lead-contacts] Clay LinkedIn webhook failed: ${res.error}`);
+        else
+          console.log(
+            `[find-valuation-lead-contacts] Clay LinkedIn webhook sent for ${firstName} ${lastName}`,
+          );
       })
-      .catch((err) => console.error(`[find-valuation-lead-contacts] Clay LinkedIn webhook error: ${err}`));
+      .catch((err) =>
+        console.error(`[find-valuation-lead-contacts] Clay LinkedIn webhook error: ${err}`),
+      );
 
     return true;
   } catch (err) {

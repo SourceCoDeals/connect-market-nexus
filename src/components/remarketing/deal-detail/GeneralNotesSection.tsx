@@ -46,8 +46,7 @@ export const GeneralNotesSection = ({
       lastSavedNotes.current = editedNotes;
       toast.success('Notes saved successfully');
     } catch (error) {
-      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
-      toast.error(`Failed to save notes: ${message}`);
+      toast.error('Failed to save notes');
     } finally {
       setIsSaving(false);
     }

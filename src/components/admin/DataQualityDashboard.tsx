@@ -16,18 +16,10 @@ import {
 } from 'lucide-react';
 import { useDataQualityMonitor } from '@/hooks/use-data-quality-monitor';
 import { toast } from '@/hooks/use-toast';
-import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 export function DataQualityDashboard() {
-  const {
-    metrics,
-    alerts,
-    isLoading,
-    error,
-    dismissAlert,
-    triggerDataRecoveryCampaign,
-    refreshMetrics,
-  } = useDataQualityMonitor();
+  const { metrics, alerts, isLoading, dismissAlert, triggerDataRecoveryCampaign } =
+    useDataQualityMonitor();
 
   const handleTriggerRecovery = async () => {
     try {
@@ -48,19 +40,6 @@ export function DataQualityDashboard() {
       });
     }
   };
-
-  // Error comes first — without this, a failed profiles/funnel query left the
-  // card spinning on "Loading data quality metrics..." indefinitely because
-  // metrics stayed null even after isLoading flipped to false.
-  if (error) {
-    return (
-      <DashboardErrorBanner
-        title="Couldn't load data quality metrics"
-        error={error}
-        onRetry={() => refreshMetrics()}
-      />
-    );
-  }
 
   if (isLoading || !metrics) {
     return (

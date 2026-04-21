@@ -43,9 +43,8 @@ export async function extractFunctionError(error: unknown, fallback: string): Pr
   // FunctionsHttpError exposes the original Response on `context`.
   const ctx = (error as { context?: unknown }).context;
   if (ctx && typeof (ctx as Response).json === 'function') {
-    const response = ctx as Response;
     try {
-      const body = await response.clone().json();
+      const body = await (ctx as Response).clone().json();
       if (body && typeof body === 'object') {
         const serverMessage =
           (body as { error?: string }).error || (body as { message?: string }).message;
@@ -54,28 +53,7 @@ export async function extractFunctionError(error: unknown, fallback: string): Pr
         }
       }
     } catch {
-      // body wasn't JSON — fall through to text below.
-    }
-
-    // Fallback: try to read the response as plain text. Supabase edge
-    // function wall-clock timeouts (150s+) return a plain "upstream
-    // request timeout" or 504 body from the platform, not JSON, so the
-    // JSON path above silently fails. Surfacing the HTTP status + first
-    // line of the text body turns the opaque "Edge Function returned a
-    // non-2xx status code" toast into something the admin can act on
-    // (e.g., "504 upstream timeout" → "retry with less data").
-    try {
-      const text = (await response.clone().text())?.trim();
-      if (text) {
-        const firstLine = text.split('\n')[0].slice(0, 200);
-        const status = response.status ? `HTTP ${response.status}` : 'edge function';
-        return `${status}: ${firstLine}`;
-      }
-      if (response.status) {
-        return `Edge Function returned HTTP ${response.status} with empty body`;
-      }
-    } catch {
-      // Body already consumed or response stream broken — fall through
+      // body wasn't JSON — fall through
     }
   }
 

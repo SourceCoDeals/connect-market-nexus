@@ -1,5 +1,6 @@
+// GitHub sync — 2026-04-14
 import { Suspense, lazy, type ReactNode, type ComponentType } from 'react';
-import { Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -107,6 +108,7 @@ const AdminDashboard = lazyWithRetry(() => import('@/pages/admin/AdminDashboard'
 const MarketplaceUsersPage = lazyWithRetry(() => import('@/pages/admin/MarketplaceUsersPage'));
 const InternalTeamPage = lazyWithRetry(() => import('@/pages/admin/InternalTeamPage'));
 const BuyerContactsPage = lazyWithRetry(() => import('@/pages/admin/BuyerContactsPage'));
+const BuyerOutreachInbox = lazyWithRetry(() => import('@/pages/admin/BuyerOutreachInbox'));
 const ContactListsPage = lazyWithRetry(() => import('@/pages/admin/ContactListsPage'));
 const ContactListDetailPage = lazyWithRetry(() => import('@/pages/admin/ContactListDetailPage'));
 const OwnerLeadsPage = lazyWithRetry(() => import('@/pages/admin/OwnerLeadsPage'));
@@ -160,11 +162,6 @@ const PhoneBurnerSettingsPage = lazyWithRetry(
   () => import('@/pages/admin/PhoneBurnerSettingsPage'),
 );
 
-// Cross-integration: unmatched activity triage (PhoneBurner + Smartlead + HeyReach)
-const UnmatchedActivitiesPage = lazyWithRetry(
-  () => import('@/pages/admin/UnmatchedActivitiesPage'),
-);
-
 // Fireflies pages
 const FirefliesIntegrationPage = lazyWithRetry(
   () => import('@/pages/admin/FirefliesIntegrationPage'),
@@ -192,7 +189,7 @@ const ReMarketingLayout = lazyWithRetry(() =>
   import('@/components/remarketing').then((m) => ({ default: m.ReMarketingLayout })),
 );
 const ReMarketingDashboard = lazyWithRetry(
-  () => import('@/pages/admin/remarketing/ReMarketingDashboardV2'),
+  () => import('@/pages/admin/remarketing/ReMarketingDashboard'),
 );
 const ReMarketingUniverses = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingUniverses'),
@@ -253,17 +250,6 @@ function RedirectWithId({ to }: { to: string }) {
   const params = useParams();
   const resolved = to.replace(/:(\w+)/g, (_, key) => params[key] ?? key);
   return <Navigate to={resolved} replace />;
-}
-
-// Legacy bookmark redirect: `/admin/marketplace/users?view=owners` used to
-// render the Owner/Seller Leads view from inside a shared page. Owner leads
-// now has its own dedicated route.
-function MarketplaceUsersRoute() {
-  const [params] = useSearchParams();
-  if (params.get('view') === 'owners') {
-    return <Navigate to="/admin/marketplace/owner-leads" replace />;
-  }
-  return <MarketplaceUsersPage />;
 }
 
 const queryClient = new QueryClient({
@@ -568,27 +554,11 @@ function App() {
               />
               <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
               <Route path="buyers/contacts" element={<BuyerContactsPage />} />
+              <Route path="buyers/outreach-inbox" element={<BuyerOutreachInbox />} />
 
-              {/* CONTACT LISTS — requires moderator+. Matches the RLS policy on
-                  contact_lists (is_admin() → role IN ('admin','owner','moderator')),
-                  so viewers get a clear /unauthorized screen instead of a
-                  silently-empty list page. */}
-              <Route
-                path="lists"
-                element={
-                  <RoleGate min="moderator">
-                    <ContactListsPage />
-                  </RoleGate>
-                }
-              />
-              <Route
-                path="lists/:id"
-                element={
-                  <RoleGate min="moderator">
-                    <ContactListDetailPage />
-                  </RoleGate>
-                }
-              />
+              {/* CONTACT LISTS */}
+              <Route path="lists" element={<ContactListsPage />} />
+              <Route path="lists/:id" element={<ContactListDetailPage />} />
 
               {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
               <Route path="listing-preview/:id" element={<ListingPreview />} />
@@ -601,7 +571,7 @@ function App() {
                 <Route path="smartlead" element={<SmartleadResponsesList />} />
                 <Route path="smartlead/:inboxId" element={<SmartleadResponseDetail />} />
               </Route>
-              <Route path="marketplace/users" element={<MarketplaceUsersRoute />} />
+              <Route path="marketplace/users" element={<MarketplaceUsersPage />} />
               <Route path="marketplace/owner-leads" element={<OwnerLeadsPage />} />
 
               {/* REMARKETING (GlobalActivityStatusBar lives in ReMarketingLayout wrapper) */}
@@ -683,13 +653,11 @@ function App() {
                 />
               </Route>
 
-              {/* SMARTLEAD — per-user campaigns page is open to all
-                  internal team members; the API-credential settings page
-                  stays admin-only. */}
+              {/* SMARTLEAD */}
               <Route
                 path="smartlead/campaigns"
                 element={
-                  <RoleGate min="moderator">
+                  <RoleGate min="admin">
                     <SmartleadCampaignsPage />
                   </RoleGate>
                 }
@@ -703,12 +671,11 @@ function App() {
                 }
               />
 
-              {/* PHONEBURNER — dialer sessions are a per-user tool; the
-                  API-credential settings page stays admin-only. */}
+              {/* PHONEBURNER */}
               <Route
                 path="phoneburner/sessions"
                 element={
-                  <RoleGate min="moderator">
+                  <RoleGate min="admin">
                     <PhoneBurnerSessionsPage />
                   </RoleGate>
                 }
@@ -722,24 +689,11 @@ function App() {
                 }
               />
 
-              {/* Cross-integration unmatched-activity triage. Admin-only so
-                  arbitrary moderators can't reshape contact_activities /
-                  outreach queues. */}
-              <Route
-                path="unmatched-activities"
-                element={
-                  <RoleGate min="admin">
-                    <UnmatchedActivitiesPage />
-                  </RoleGate>
-                }
-              />
-
-              {/* FIREFLIES — transcript viewing is a per-user tool open
-                  to all internal team members. */}
+              {/* FIREFLIES */}
               <Route
                 path="fireflies"
                 element={
-                  <RoleGate min="moderator">
+                  <RoleGate min="admin">
                     <FirefliesIntegrationPage />
                   </RoleGate>
                 }

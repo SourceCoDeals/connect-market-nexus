@@ -93,14 +93,17 @@ export function LogManualCallDialog({
       // 2. Log to deal_activities if we have a dealId
       if (dealId) {
         try {
-          await supabase.rpc('log_deal_activity', {
+          await (supabase as any).rpc('log_deal_activity', {
             p_deal_id: dealId,
             p_activity_type: 'call_completed',
             p_title: `Manual call logged: ${contactName || contactEmail || 'contact'} (${OUTCOMES.find((o) => o.value === outcome)?.label || outcome})`,
-            p_description: [
-              durationSeconds > 0 ? `Duration: ${durationMinutes}m` : null,
-              notes ? `Notes: ${notes.substring(0, 200)}` : null,
-            ].filter(Boolean).join(' | ') || null,
+            p_description:
+              [
+                durationSeconds > 0 ? `Duration: ${durationMinutes}m` : null,
+                notes ? `Notes: ${notes.substring(0, 200)}` : null,
+              ]
+                .filter(Boolean)
+                .join(' | ') || null,
             p_admin_id: null,
             p_metadata: {
               contact_activity_id: activity?.id,
@@ -127,9 +130,10 @@ export function LogManualCallDialog({
 
           try {
             await (supabase as any).from('daily_standup_tasks').insert({
-              title: outcome === 'callback'
-                ? `Callback: ${contactName || contactEmail || 'contact'}`
-                : `Follow up (${outcome.replace('_', ' ')}): ${contactName || contactEmail || 'contact'}`,
+              title:
+                outcome === 'callback'
+                  ? `Callback: ${contactName || contactEmail || 'contact'}`
+                  : `Follow up (${outcome.replace('_', ' ')}): ${contactName || contactEmail || 'contact'}`,
               task_type: outcome === 'callback' ? 'schedule_call' : 'follow_up_with_buyer',
               status: 'pending',
               priority: connected ? 'high' : 'medium',
@@ -211,7 +215,10 @@ export function LogManualCallDialog({
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Direction</Label>
-              <Select value={direction} onValueChange={(v) => setDirection(v as 'outbound' | 'inbound')}>
+              <Select
+                value={direction}
+                onValueChange={(v) => setDirection(v as 'outbound' | 'inbound')}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -229,7 +236,9 @@ export function LogManualCallDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {OUTCOMES.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -261,10 +270,7 @@ export function LogManualCallDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={() => logCallMutation.mutate()}
-            disabled={logCallMutation.isPending}
-          >
+          <Button onClick={() => logCallMutation.mutate()} disabled={logCallMutation.isPending}>
             {logCallMutation.isPending ? 'Logging...' : 'Log Call'}
           </Button>
         </DialogFooter>

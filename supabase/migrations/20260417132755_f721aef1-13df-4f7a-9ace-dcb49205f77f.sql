@@ -1,0 +1,1 @@
+ALTER TABLE public.contact_activities ADD COLUMN IF NOT EXISTS ai_summary text;

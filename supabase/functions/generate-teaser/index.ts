@@ -304,28 +304,19 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Step 1: Fetch the published lead memo — the teaser's ONLY input.
-    // lead_memos.status has a CHECK constraint of ('draft','published','archived')
-    // so the old .eq('status','completed') filter never matched any row and
-    // every teaser generation failed with "Lead memo must be generated before
-    // creating a teaser." even when a published memo was sitting right there.
-    // The MemosPanel UI already gates the Generate Teaser button on the
-    // presence of a published full memo, so 'published' is the expected state.
+    // Step 1: Fetch the completed lead memo — the teaser's ONLY input
     const { data: leadMemo } = await supabaseAdmin
       .from('lead_memos')
       .select('content')
       .eq('deal_id', dealId)
       .eq('memo_type', 'full_memo')
-      .eq('status', 'published')
-      .order('published_at', { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
+      .eq('status', 'completed')
+      .single();
 
     if (!leadMemo) {
       return new Response(
         JSON.stringify({
-          error:
-            'Publish the full lead memo before creating a teaser — no published full_memo found for this deal.',
+          error: 'Lead memo must be generated before creating a teaser.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
@@ -539,11 +530,10 @@ Verify before returning: search your output for any proper noun that is not the 
     const teaserSections = parseMarkdownToSections(teaserText);
 
     // Step 7: Save the result
-    const branding = requestBranding || 'sourceco';
     const teaserContent: MemoContent = {
       sections: teaserSections,
       memo_type: 'anonymous_teaser',
-      branding,
+      branding: requestBranding || 'sourceco',
       generated_at: new Date().toISOString(),
       company_name: projectName,
       company_address: '',
@@ -551,35 +541,15 @@ Verify before returning: search your output for any proper noun that is not the 
       company_phone: '',
     };
 
-    // Match generate-lead-memo's dedup pattern — delete prior draft teasers
-    // for this deal+branding so regenerating does not accumulate orphan rows.
-    await supabaseAdmin
-      .from('lead_memos')
-      .delete()
-      .eq('deal_id', dealId)
-      .eq('memo_type', 'anonymous_teaser')
-      .eq('branding', branding)
-      .eq('status', 'draft');
-
-    // lead_memos.status is CHECK-constrained to ('draft','published','archived')
-    // and has no validation_result / project_name columns. The old insert used
-    // 'completed' | 'failed_validation' and referenced those missing columns,
-    // which threw 23514 / 42703 and surfaced as "Edge Function returned a
-    // non-2xx status code" in the Generate Draft toast. Write as a draft and
-    // stash validation + codename in the generated_from JSONB.
     const { data: teaser, error: teaserError } = await supabaseAdmin
       .from('lead_memos')
       .insert({
         deal_id: dealId,
         memo_type: 'anonymous_teaser',
-        branding,
         content: teaserContent,
-        status: 'draft',
-        generated_from: {
-          project_name: projectName,
-          validation: validationResult,
-          generated_at: new Date().toISOString(),
-        },
+        status: validationResult.pass ? 'completed' : 'failed_validation',
+        validation_result: validationResult,
+        project_name: projectName,
         created_by: auth.userId,
       })
       .select()
@@ -616,15 +586,9 @@ Verify before returning: search your output for any proper noun that is not the 
     );
   } catch (error: unknown) {
     console.error('Generate teaser error:', error);
-    // Surface the underlying error message so callers (and their toasts)
-    // can show something more actionable than "non-2xx status code".
-    // We keep the shape stable (`error` string) so `extractFunctionError`
-    // picks it up on the frontend.
-    const detail =
-      error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
     return new Response(
       JSON.stringify({
-        error: `Failed to generate teaser: ${detail}`,
+        error: 'Failed to generate teaser',
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

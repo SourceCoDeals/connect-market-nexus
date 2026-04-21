@@ -40,10 +40,9 @@ export function useBuyerData(id: string | undefined, isNew: boolean) {
     queryFn: async () => {
       if (isNew) return [];
 
-      const { data, error } = await supabase
-        .from('contacts')
+      const { data, error } = await (supabase.from('contacts') as any)
         .select(
-          'id, first_name, last_name, email, phone, linkedin_url, title, is_primary_at_firm, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, phone_source, source',
+          'id, first_name, last_name, email, phone, linkedin_url, title, is_primary_at_firm, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, phone_source',
         )
         .eq('remarketing_buyer_id', id!)
         .eq('contact_type', 'buyer')
@@ -51,7 +50,7 @@ export function useBuyerData(id: string | undefined, isNew: boolean) {
         .order('is_primary_at_firm', { ascending: false });
 
       if (error) throw error;
-      return (data || []).map((c) => ({
+      return ((data ?? []) as any[]).map((c) => ({
         id: c.id,
         name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
         first_name: c.first_name || '',
@@ -66,7 +65,6 @@ export function useBuyerData(id: string | undefined, isNew: boolean) {
         mobile_phone_3: c.mobile_phone_3 || null,
         office_phone: c.office_phone || null,
         phone_source: c.phone_source || null,
-        source: (c as { source?: string | null }).source ?? null,
       })) as Contact[];
     },
     enabled: !isNew,

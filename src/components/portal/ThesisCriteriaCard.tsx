@@ -51,8 +51,7 @@ export function ThesisCriteriaCard({ criteria, onEdit, onDelete }: ThesisCriteri
 
   const hasGeography = criteria.target_states.length > 0;
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteClick = () => {
     if (confirmingDelete) {
       onDelete(criteria.id);
       setConfirmingDelete(false);
@@ -61,27 +60,8 @@ export function ThesisCriteriaCard({ criteria, onEdit, onDelete }: ThesisCriteri
     }
   };
 
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEdit(criteria);
-  };
-
   return (
-    <Card
-      className={`relative transition-all hover:border-primary/50 hover:shadow-sm cursor-pointer ${
-        !criteria.is_active ? 'opacity-50' : ''
-      }`}
-      onClick={() => onEdit(criteria)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onEdit(criteria);
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={`Edit ${criteria.industry_label} thesis criteria`}
-    >
+    <Card className={`relative transition-opacity ${!criteria.is_active ? 'opacity-50' : ''}`}>
       <CardContent className="p-5 space-y-3">
         {/* Header: title + priority */}
         <div className="flex items-start justify-between gap-2">
@@ -162,7 +142,12 @@ export function ThesisCriteriaCard({ criteria, onEdit, onDelete }: ThesisCriteri
 
         {/* Actions */}
         <div className="flex items-center gap-2 pt-1">
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleEditClick}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => onEdit(criteria)}
+          >
             <Edit3 className="h-3.5 w-3.5 mr-1" />
             Edit
           </Button>

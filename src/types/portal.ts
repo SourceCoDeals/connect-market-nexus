@@ -37,7 +37,6 @@ export type PortalActivityAction =
   | 'response_submitted'
   | 'document_downloaded'
   | 'message_sent'
-  | 'buyer_message_sent'
   | 'login'
   | 'settings_changed'
   | 'reminder_sent'
@@ -82,7 +81,6 @@ export interface PortalUser {
   email: string;
   name: string;
   is_active: boolean;
-  deactivated_at: string | null;
   last_login_at: string | null;
   invite_sent_at: string | null;
   invite_accepted_at: string | null;
@@ -138,8 +136,6 @@ export interface PortalDealPush {
   reminder_count: number;
   last_reminder_at: string | null;
   data_room_access_token: string | null;
-  snapshot_version: number;
-  snoozed_until: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -290,7 +286,6 @@ export interface PortalThesisCriteria {
   portal_org_id: string;
   industry_label: string;
   industry_keywords: string[];
-  excluded_keywords: string[];
   ebitda_min: number | null;
   ebitda_max: number | null;
   revenue_min: number | null;
@@ -311,7 +306,6 @@ export interface CreateThesisCriteriaInput {
   portal_org_id: string;
   industry_label: string;
   industry_keywords: string[];
-  excluded_keywords?: string[];
   ebitda_min?: number | null;
   ebitda_max?: number | null;
   revenue_min?: number | null;

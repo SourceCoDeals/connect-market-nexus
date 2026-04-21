@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -14,78 +14,14 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
-// Exponential backoff schedule for repeated failed login attempts (ms).
-// Resets on any successful login. Defense in depth on top of Supabase's server-side limits.
-const LOGIN_BACKOFF_MS = [0, 0, 1000, 2000, 4000, 8000, 16000, 30000];
-const MAX_BACKOFF_MS = 30000;
-
-// CTO audit C1: persist the lockout to localStorage so opening a new tab
-// or reloading the page doesn't reset the counter. Keys are scoped to the
-// origin so cross-site brute force attempts can't share state.
-const LOCKOUT_KEY = 'sourceco_login_lockout_until';
-const FAILED_ATTEMPTS_KEY = 'sourceco_login_failed_attempts';
-
-function readLockoutState(): { lockoutUntil: number | null; failedAttempts: number } {
-  if (typeof window === 'undefined') return { lockoutUntil: null, failedAttempts: 0 };
-  try {
-    const lockRaw = window.localStorage.getItem(LOCKOUT_KEY);
-    const failedRaw = window.localStorage.getItem(FAILED_ATTEMPTS_KEY);
-    const lock = lockRaw ? parseInt(lockRaw, 10) : null;
-    const failed = failedRaw ? parseInt(failedRaw, 10) : 0;
-    return {
-      lockoutUntil: lock && lock > Date.now() ? lock : null,
-      failedAttempts: Number.isFinite(failed) && failed > 0 ? failed : 0,
-    };
-  } catch {
-    return { lockoutUntil: null, failedAttempts: 0 };
-  }
-}
-
-function writeLockoutState(lockoutUntil: number | null, failedAttempts: number) {
-  if (typeof window === 'undefined') return;
-  try {
-    if (lockoutUntil) {
-      window.localStorage.setItem(LOCKOUT_KEY, String(lockoutUntil));
-    } else {
-      window.localStorage.removeItem(LOCKOUT_KEY);
-    }
-    if (failedAttempts > 0) {
-      window.localStorage.setItem(FAILED_ATTEMPTS_KEY, String(failedAttempts));
-    } else {
-      window.localStorage.removeItem(FAILED_ATTEMPTS_KEY);
-    }
-  } catch {
-    /* best-effort */
-  }
-}
-
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const initialLockoutState = readLockoutState();
-  const [lockoutUntil, setLockoutUntil] = useState<number | null>(initialLockoutState.lockoutUntil);
-  const [, forceTick] = useState(0);
-  const failedAttemptsRef = useRef(initialLockoutState.failedAttempts);
   const { user, isLoading, authChecked, login } = useAuth();
   const navigate = useNavigate();
-
-  // Tick the UI every 500ms while locked out so the countdown updates
-  useEffect(() => {
-    if (!lockoutUntil) return undefined;
-    const id = window.setInterval(() => {
-      if (Date.now() >= lockoutUntil) {
-        setLockoutUntil(null);
-        writeLockoutState(null, failedAttemptsRef.current);
-        window.clearInterval(id);
-      } else {
-        forceTick((n) => n + 1);
-      }
-    }, 500);
-    return () => window.clearInterval(id);
-  }, [lockoutUntil]);
 
   // Simple redirect if already logged in - route based on approval status
   useEffect(() => {
@@ -103,13 +39,6 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (lockoutUntil && Date.now() < lockoutUntil) {
-      const secondsLeft = Math.ceil((lockoutUntil - Date.now()) / 1000);
-      setError(`Too many failed attempts. Please wait ${secondsLeft}s before trying again.`);
-      return;
-    }
-
     setIsSubmitting(true);
 
     if (!email.trim() || !password) {
@@ -120,38 +49,22 @@ const Login = () => {
 
     try {
       await login(email, password);
-      failedAttemptsRef.current = 0;
-      setLockoutUntil(null);
-      writeLockoutState(null, 0);
       toast({
         title: 'Welcome back',
         description: 'You have successfully logged in.',
       });
     } catch (err: unknown) {
-      failedAttemptsRef.current += 1;
-      const nextDelay =
-        LOGIN_BACKOFF_MS[Math.min(failedAttemptsRef.current, LOGIN_BACKOFF_MS.length - 1)] ??
-        MAX_BACKOFF_MS;
-      const nextLockout = nextDelay > 0 ? Date.now() + nextDelay : null;
-      if (nextLockout) {
-        setLockoutUntil(nextLockout);
-      }
-      writeLockoutState(nextLockout, failedAttemptsRef.current);
-      const message = (err as Error).message || 'Failed to sign in';
-      setError(message);
+      // Error logged by error handler
+      setError((err as Error).message || 'Failed to sign in');
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: message,
+        description: (err as Error).message || 'Please check your credentials and try again',
       });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const secondsRemaining =
-    lockoutUntil && Date.now() < lockoutUntil ? Math.ceil((lockoutUntil - Date.now()) / 1000) : 0;
-  const isLockedOut = secondsRemaining > 0;
 
   // Simple loading state
   if (!authChecked && isLoading) {
@@ -250,17 +163,8 @@ const Login = () => {
                     </button>
                   </div>
                 </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="sm"
-                  disabled={isSubmitting || isLockedOut}
-                >
-                  {isSubmitting
-                    ? 'Signing in...'
-                    : isLockedOut
-                      ? `Wait ${secondsRemaining}s...`
-                      : 'Sign in'}
+                <Button type="submit" className="w-full" size="sm" disabled={isSubmitting}>
+                  {isSubmitting ? 'Signing in...' : 'Sign in'}
                 </Button>
               </form>
             </CardContent>

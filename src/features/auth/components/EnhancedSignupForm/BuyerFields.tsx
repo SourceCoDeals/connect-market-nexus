@@ -2,7 +2,13 @@ import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect } from '@/components/ui/multi-select';
@@ -25,7 +31,7 @@ import {
   OWNER_TIMELINE_OPTIONS,
   INDIVIDUAL_FUNDING_SOURCE_OPTIONS,
   USES_BANK_FINANCE_OPTIONS,
-  MAX_EQUITY_TODAY_OPTIONS
+  MAX_EQUITY_TODAY_OPTIONS,
 } from '@/lib/signup-field-options';
 
 interface BuyerFieldsProps {
@@ -41,14 +47,15 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
       return (
         <div className="space-y-4">
           <div>
-            <Label htmlFor="portfolioCompanyAddon">Portfolio Company Add-on (Optional)</Label>
+            <Label htmlFor="portfolioCompanyAddon">Portfolio Company Add-on</Label>
             <Input
               id="portfolioCompanyAddon"
               placeholder="Which portfolio company would this be an add-on to?"
               {...form.register('portfolioCompanyAddon')}
             />
             <p className="text-sm text-muted-foreground mt-1">
-              If this acquisition would be an add-on to an existing portfolio company, specify which one.
+              If this acquisition would be an add-on to an existing portfolio company, specify which
+              one.
             </p>
           </div>
 
@@ -59,7 +66,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                 <SelectValue placeholder="Select deployment status" />
               </SelectTrigger>
               <SelectContent>
-                {DEPLOYING_CAPITAL_OPTIONS.map(option => (
+                {DEPLOYING_CAPITAL_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -73,15 +80,11 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
 
           {/* Existing PE fields */}
           <div>
-            <Label htmlFor="fundSize">Fund Size</Label>
-            <Input
-              id="fundSize"
-              placeholder="e.g., $100M - $500M"
-              {...form.register('fundSize')}
-            />
+            <Label htmlFor="fundSize">Fund Size *</Label>
+            <Input id="fundSize" placeholder="e.g., $100M - $500M" {...form.register('fundSize')} />
           </div>
           <div>
-            <Label htmlFor="investmentSize">Investment Size</Label>
+            <Label htmlFor="investmentSize">Investment Size *</Label>
             <Input
               id="investmentSize"
               placeholder="e.g., $10M - $50M"
@@ -89,12 +92,8 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
             />
           </div>
           <div>
-            <Label htmlFor="aum">Assets Under Management</Label>
-            <Input
-              id="aum"
-              placeholder="e.g., $500M - $1B"
-              {...form.register('aum')}
-            />
+            <Label htmlFor="aum">Assets Under Management *</Label>
+            <Input id="aum" placeholder="e.g., $500M - $1B" {...form.register('aum')} />
           </div>
         </div>
       );
@@ -103,7 +102,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
       return (
         <div className="space-y-4">
           <div>
-            <Label htmlFor="owningBusinessUnit">Owning Business Unit / Brand (Optional)</Label>
+            <Label htmlFor="owningBusinessUnit">Owning Business Unit / Brand</Label>
             <Input
               id="owningBusinessUnit"
               placeholder="Which business unit would own this acquisition?"
@@ -121,7 +120,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                 <SelectValue placeholder="Select deal size range" />
               </SelectTrigger>
               <SelectContent>
-                {DEAL_SIZE_BAND_OPTIONS.map(option => (
+                {DEAL_SIZE_BAND_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -131,9 +130,12 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label>Integration Plan (Optional)</Label>
+            <Label>Integration Plan *</Label>
             <MultiSelect
-              options={INTEGRATION_PLAN_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+              options={INTEGRATION_PLAN_OPTIONS.map((opt) => ({
+                value: opt.value,
+                label: opt.label,
+              }))}
               selected={watch('integrationPlan') || []}
               onSelectedChange={(selected) => setValue('integrationPlan', selected)}
               placeholder="Select integration approaches"
@@ -144,13 +146,13 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label htmlFor="corpdevIntent">Speed/Intent (Optional)</Label>
+            <Label htmlFor="corpdevIntent">Speed/Intent *</Label>
             <Select onValueChange={(value) => setValue('corpdevIntent', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select your current intent" />
               </SelectTrigger>
               <SelectContent>
-                {CORPDEV_INTENT_OPTIONS.map(option => (
+                {CORPDEV_INTENT_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -160,7 +162,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label htmlFor="estimatedRevenue">Estimated Revenue</Label>
+            <Label htmlFor="estimatedRevenue">Estimated Revenue *</Label>
             <Input
               id="estimatedRevenue"
               placeholder="e.g., $100M - $500M"
@@ -180,7 +182,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                 <SelectValue placeholder="Select decision authority" />
               </SelectTrigger>
               <SelectContent>
-                {DISCRETION_TYPE_OPTIONS.map(option => (
+                {DISCRETION_TYPE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -205,7 +207,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label>Operating Company Targets (Optional)</Label>
+            <Label>Operating Company Targets</Label>
             <MultiSelect
               options={[]}
               selected={watch('operatingCompanyTargets') || []}
@@ -220,15 +222,11 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
 
           {/* Existing Family Office fields */}
           <div>
-            <Label htmlFor="fundSize">Fund Size</Label>
-            <Input
-              id="fundSize"
-              placeholder="e.g., $50M - $100M"
-              {...form.register('fundSize')}
-            />
+            <Label htmlFor="fundSize">Fund Size *</Label>
+            <Input id="fundSize" placeholder="e.g., $50M - $100M" {...form.register('fundSize')} />
           </div>
           <div>
-            <Label htmlFor="investmentSize">Investment Size</Label>
+            <Label htmlFor="investmentSize">Investment Size *</Label>
             <Input
               id="investmentSize"
               placeholder="e.g., $5M - $25M"
@@ -236,12 +234,8 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
             />
           </div>
           <div>
-            <Label htmlFor="aum">Assets Under Management</Label>
-            <Input
-              id="aum"
-              placeholder="e.g., $100M - $500M"
-              {...form.register('aum')}
-            />
+            <Label htmlFor="aum">Assets Under Management *</Label>
+            <Input id="aum" placeholder="e.g., $100M - $500M" {...form.register('aum')} />
           </div>
         </div>
       );
@@ -256,7 +250,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                 <SelectValue placeholder="Select equity available" />
               </SelectTrigger>
               <SelectContent>
-                {COMMITTED_EQUITY_BAND_OPTIONS.map(option => (
+                {COMMITTED_EQUITY_BAND_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -271,7 +265,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           <div>
             <Label>Source of Equity *</Label>
             <MultiSelect
-              options={EQUITY_SOURCE_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+              options={EQUITY_SOURCE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
               selected={watch('equitySource') || []}
               onSelectedChange={(selected) => setValue('equitySource', selected)}
               placeholder="Select all that apply"
@@ -294,7 +288,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label htmlFor="backersSummary">Representative Backers (Optional)</Label>
+            <Label htmlFor="backersSummary">Representative Backers *</Label>
             <Input
               id="backersSummary"
               placeholder="e.g., Smith Capital; Oak Family Office"
@@ -306,13 +300,13 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label htmlFor="deploymentTiming">Readiness Window (Optional)</Label>
+            <Label htmlFor="deploymentTiming">Readiness Window *</Label>
             <Select onValueChange={(value) => setValue('deploymentTiming', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select readiness timeline" />
               </SelectTrigger>
               <SelectContent>
-                {DEPLOYMENT_TIMING_OPTIONS.map(option => (
+                {DEPLOYMENT_TIMING_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -333,7 +327,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                 <SelectValue placeholder="Select search type" />
               </SelectTrigger>
               <SelectContent>
-                {SEARCH_TYPE_OPTIONS.map(option => (
+                {SEARCH_TYPE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -352,7 +346,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                 <SelectValue placeholder="Select equity available" />
               </SelectTrigger>
               <SelectContent>
-                {ACQ_EQUITY_BAND_OPTIONS.map(option => (
+                {ACQ_EQUITY_BAND_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -364,7 +358,10 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           <div>
             <Label>Financing Plan *</Label>
             <MultiSelect
-              options={FINANCING_PLAN_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+              options={FINANCING_PLAN_OPTIONS.map((opt) => ({
+                value: opt.value,
+                label: opt.label,
+              }))}
               selected={watch('financingPlan') || []}
               onSelectedChange={(selected) => setValue('financingPlan', selected)}
               placeholder="Select all that apply"
@@ -380,11 +377,13 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
               checked={watch('flexSub2mEbitda') === true}
               onCheckedChange={(checked) => setValue('flexSub2mEbitda', checked === true)}
             />
-            <Label htmlFor="flexSub2mEbitda">Flexible on size? (can pursue less than $2M EBITDA) *</Label>
+            <Label htmlFor="flexSub2mEbitda">
+              Flexible on size? (can pursue less than $2M EBITDA) *
+            </Label>
           </div>
 
           <div>
-            <Label htmlFor="anchorInvestorsSummary">Anchor Investors / Committed Backers (Optional)</Label>
+            <Label htmlFor="anchorInvestorsSummary">Anchor Investors / Committed Backers *</Label>
             <Input
               id="anchorInvestorsSummary"
               placeholder="e.g., XYZ Capital; ABC Family Office"
@@ -396,13 +395,13 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label htmlFor="searchStage">Stage of Search (Optional)</Label>
+            <Label htmlFor="searchStage">Stage of Search *</Label>
             <Select onValueChange={(value) => setValue('searchStage', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select current stage" />
               </SelectTrigger>
               <SelectContent>
-                {SEARCH_STAGE_OPTIONS.map(option => (
+                {SEARCH_STAGE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -417,13 +416,15 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
       return (
         <div className="space-y-4">
           <div>
-            <Label htmlFor="onBehalfOfBuyer">Are you inquiring on behalf of a capitalized buyer with discretion? *</Label>
+            <Label htmlFor="onBehalfOfBuyer">
+              Are you inquiring on behalf of a capitalized buyer with discretion? *
+            </Label>
             <Select onValueChange={(value) => setValue('onBehalfOfBuyer', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select yes or no" />
               </SelectTrigger>
               <SelectContent>
-                {ON_BEHALF_OPTIONS.map(option => (
+                {ON_BEHALF_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -441,7 +442,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                     <SelectValue placeholder="Select buyer role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {BUYER_ROLE_OPTIONS.map(option => (
+                    {BUYER_ROLE_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -463,7 +464,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           )}
 
           <div>
-            <Label htmlFor="mandateBlurb">Mandate in One Line (≤140 chars, Optional)</Label>
+            <Label htmlFor="mandateBlurb">Mandate in One Line (≤140 chars) *</Label>
             <Textarea
               id="mandateBlurb"
               placeholder="Brief description of your mandate or focus"
@@ -497,7 +498,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                 <SelectValue placeholder="Select timeline" />
               </SelectTrigger>
               <SelectContent>
-                {OWNER_TIMELINE_OPTIONS.map(option => (
+                {OWNER_TIMELINE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -518,7 +519,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
                 <SelectValue placeholder="Select funding source" />
               </SelectTrigger>
               <SelectContent>
-                {INDIVIDUAL_FUNDING_SOURCE_OPTIONS.map(option => (
+                {INDIVIDUAL_FUNDING_SOURCE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -541,13 +542,13 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label htmlFor="usesBankFinance">Will you use SBA/bank financing?</Label>
+            <Label htmlFor="usesBankFinance">Will you use SBA/bank financing? *</Label>
             <Select onValueChange={(value) => setValue('usesBankFinance', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select yes, no, or not sure" />
               </SelectTrigger>
               <SelectContent>
-                {USES_BANK_FINANCE_OPTIONS.map(option => (
+                {USES_BANK_FINANCE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -557,13 +558,13 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label htmlFor="maxEquityTodayBand">Max Equity You Can Commit Today (Optional)</Label>
+            <Label htmlFor="maxEquityTodayBand">Max Equity You Can Commit Today *</Label>
             <Select onValueChange={(value) => setValue('maxEquityTodayBand', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select equity range" />
               </SelectTrigger>
               <SelectContent>
-                {MAX_EQUITY_TODAY_OPTIONS.map(option => (
+                {MAX_EQUITY_TODAY_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>

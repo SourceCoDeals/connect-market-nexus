@@ -1,26 +1,15 @@
 import { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Phone, Mail, Video, Linkedin, Clock, Globe } from 'lucide-react';
+import { Phone, Mail, Video, Linkedin, Clock } from 'lucide-react';
 import type { UnifiedActivityEntry } from '@/hooks/use-contact-combined-history';
 
 interface BuyerEngagementSummaryProps {
   entries: UnifiedActivityEntry[];
   activeDealCount?: number;
-  /**
-   * Phase 4: number of firm_domain_aliases entries feeding `entries`. When
-   * > 0, this component surfaces a "firm touchpoints" badge so users can
-   * see that the count reflects activity across every contact at the
-   * firm's domains — not just this buyer row's primary contact.
-   */
-  firmDomainCount?: number;
 }
 
-export function BuyerEngagementSummary({
-  entries,
-  activeDealCount,
-  firmDomainCount,
-}: BuyerEngagementSummaryProps) {
+export function BuyerEngagementSummary({ entries, activeDealCount }: BuyerEngagementSummaryProps) {
   const stats = useMemo(() => {
     const calls = entries.filter((e) => e.channel === 'call');
     const meetings = entries.filter((e) => e.channel === 'meeting');
@@ -90,16 +79,6 @@ export function BuyerEngagementSummary({
                 : 'No contact recorded'}
             </span>
           </span>
-          {firmDomainCount != null && firmDomainCount > 0 && (
-            <Badge
-              variant="outline"
-              className="text-xs border-blue-200 text-blue-700 bg-blue-50/60 dark:bg-blue-950/20 dark:text-blue-200 dark:border-blue-800"
-              title={`Activity counts include every contact across ${firmDomainCount} firm domain${firmDomainCount === 1 ? '' : 's'}.`}
-            >
-              <Globe className="h-3 w-3 mr-1" />
-              Firm-wide ({firmDomainCount} domain{firmDomainCount === 1 ? '' : 's'})
-            </Badge>
-          )}
           {activeDealCount != null && activeDealCount > 1 && (
             <Badge variant="outline" className="text-xs">
               Active on {activeDealCount} deals

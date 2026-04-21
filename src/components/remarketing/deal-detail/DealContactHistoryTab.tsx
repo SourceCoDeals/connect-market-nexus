@@ -6,24 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import {
-  Users,
-  Mail,
-  Phone,
-  Activity,
-  User,
-  ExternalLink,
-  Globe,
-  Linkedin,
-  Download,
-} from 'lucide-react';
+import { Users, Mail, Phone, Activity, User, ExternalLink } from 'lucide-react';
 import {
   ContactActivityTimeline,
   ContactActivityTimelineByEmail,
 } from '@/components/remarketing/ContactActivityTimeline';
-import { useFirmDomainAliases } from '@/hooks/admin/use-firm-agreement-queries';
-import { useContactCombinedHistoryByDomain } from '@/hooks/use-contact-combined-history';
 
 interface AssociatedBuyer {
   id: string;
@@ -34,7 +21,6 @@ interface AssociatedBuyer {
   contactEmail: string | null;
   contactPhone: string | null;
   remarketing_buyer_id: string | null;
-  marketplace_firm_id: string | null;
 }
 
 interface DealContactHistoryTabProps {
@@ -81,7 +67,7 @@ export function DealContactHistoryTab({
           contact_email,
           contact_phone,
           remarketing_buyer_id,
-          buyers!deals_remarketing_buyer_id_fkey ( company_name, buyer_type, marketplace_firm_id )
+          buyers!deals_remarketing_buyer_id_fkey ( company_name, buyer_type )
         `,
         )
         .eq('listing_id', listingId)
@@ -93,20 +79,19 @@ export function DealContactHistoryTab({
 
       if (error) throw error;
 
-      return (data || []).map((d: Record<string, unknown>) => {
-        const buyerRel = d.buyers as Record<string, unknown> | null;
-        return {
-          id: d.id,
-          dealId: d.id,
-          buyerName: (buyerRel?.company_name as string) || (d.contact_name as string) || 'Unknown',
-          buyerType: (buyerRel?.buyer_type as string) || null,
-          contactName: d.contact_name,
-          contactEmail: d.contact_email,
-          contactPhone: d.contact_phone,
-          remarketing_buyer_id: d.remarketing_buyer_id,
-          marketplace_firm_id: (buyerRel?.marketplace_firm_id as string) || null,
-        };
-      }) as AssociatedBuyer[];
+      return (data || []).map((d: Record<string, unknown>) => ({
+        id: d.id,
+        dealId: d.id,
+        buyerName:
+          ((d.buyers as Record<string, unknown>)?.company_name as string) ||
+          (d.contact_name as string) ||
+          'Unknown',
+        buyerType: ((d.buyers as Record<string, unknown>)?.buyer_type as string) || null,
+        contactName: d.contact_name,
+        contactEmail: d.contact_email,
+        contactPhone: d.contact_phone,
+        remarketing_buyer_id: d.remarketing_buyer_id,
+      })) as AssociatedBuyer[];
     },
     enabled: !!listingId,
   });
@@ -135,27 +120,6 @@ export function DealContactHistoryTab({
     },
     enabled: !!listingId,
   });
-
-  // Phase 5a: pull firm_domain_aliases for the primary buyer's firm and
-  // fan out a firm-wide activity query. Gives the deal page visibility into
-  // every touchpoint across anyone at the firm, not just the one contact
-  // associated with this deal row.
-  const primaryFirmId =
-    associatedBuyers.find((b) => b.marketplace_firm_id)?.marketplace_firm_id ?? null;
-  const { data: firmAliases = [] } = useFirmDomainAliases(primaryFirmId);
-  const firmDomainList = firmAliases.map((a) => a.domain);
-  const primaryBuyerId =
-    associatedBuyers.find((b) => b.remarketing_buyer_id)?.remarketing_buyer_id ?? null;
-  const { data: firmActivity = [] } = useContactCombinedHistoryByDomain({
-    buyerId: firmDomainList.length > 0 ? primaryBuyerId : null,
-    domains: firmDomainList.length > 0 ? firmDomainList : null,
-  });
-  const firmActivityCounts = {
-    total: firmActivity.length,
-    calls: firmActivity.filter((e) => e.channel === 'call').length,
-    emails: firmActivity.filter((e) => e.channel === 'email').length,
-    linkedin: firmActivity.filter((e) => e.channel === 'linkedin').length,
-  };
 
   const isLoading = buyersLoading || contactsLoading;
 
@@ -269,65 +233,6 @@ export function DealContactHistoryTab({
 
   const defaultTab = tabs.length > 0 ? tabs[0].id : 'all';
 
-  // Export every firm-level activity row as CSV. Uses the same firmActivity
-  // query the summary badges are built from, so "export" reflects exactly
-  // what the user sees. Rows are flattened to one-per-event with the most
-  // useful columns for analysts (source, channel, event type, direction,
-  // who/when/what). Caveat: the underlying hook caps at 500 entries — this
-  // is fine for the 99th percentile deal but compliance-grade exports that
-  // need more will need a server-side edge fn.
-  const handleExportCsv = () => {
-    if (firmActivity.length === 0) return;
-
-    const header = [
-      'event_at',
-      'source',
-      'channel',
-      'event_type',
-      'direction',
-      'contact_email',
-      'title',
-      'campaign_name',
-      'body_preview',
-    ];
-    const escape = (v: unknown): string => {
-      if (v == null) return '';
-      const s = String(v).replace(/\r?\n/g, ' ').trim();
-      // RFC 4180: wrap in quotes and double any embedded quotes if the cell
-      // contains a comma, quote, or whitespace-only quirk.
-      if (/[",]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-      return s;
-    };
-    const lines = [header.join(',')];
-    for (const e of firmActivity) {
-      lines.push(
-        [
-          escape(e.event_at),
-          escape(e.source),
-          escape(e.channel),
-          escape(e.event_type),
-          escape(e.direction),
-          escape(e.contact_email),
-          escape(e.title),
-          escape(e.campaign_name),
-          escape(e.body_preview),
-        ].join(','),
-      );
-    }
-
-    const csv = lines.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const stamp = new Date().toISOString().slice(0, 10);
-    a.download = `deal-activity-${listingId}-${stamp}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -336,23 +241,9 @@ export function DealContactHistoryTab({
             <Activity className="h-5 w-5" />
             Contact Communication History
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">
-              {totalContacts} contact{totalContacts !== 1 ? 's' : ''}
-            </Badge>
-            {firmActivity.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={handleExportCsv}
-                title={`Export ${firmActivity.length} activity rows as CSV`}
-              >
-                <Download className="h-3.5 w-3.5 mr-1" />
-                Export CSV
-              </Button>
-            )}
-          </div>
+          <Badge variant="secondary" className="text-xs">
+            {totalContacts} contact{totalContacts !== 1 ? 's' : ''}
+          </Badge>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
           Unified email (SmartLead), call (PhoneBurner), and LinkedIn (HeyReach) history for all
@@ -360,53 +251,6 @@ export function DealContactHistoryTab({
         </p>
       </CardHeader>
       <CardContent>
-        {/* Phase 5a: firm-wide activity summary. When the primary buyer has
-            at least one firm_domain_aliases entry, show total touchpoint
-            counts across every contact at the firm's registered domains so
-            users don't miss activity that happened with un-tracked people
-            at the same organization. */}
-        {firmDomainList.length > 0 && firmActivityCounts.total > 0 && (
-          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50/50 px-3 py-2.5 dark:border-blue-800 dark:bg-blue-950/20">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 text-xs">
-                <Globe className="h-3.5 w-3.5 text-blue-600" />
-                <span className="font-semibold text-blue-900 dark:text-blue-200">
-                  {firmActivityCounts.total} firm touchpoint
-                  {firmActivityCounts.total === 1 ? '' : 's'}
-                </span>
-                <span className="text-blue-700/80 dark:text-blue-300/80">
-                  across {firmDomainList.length} domain
-                  {firmDomainList.length === 1 ? '' : 's'}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-blue-900 dark:text-blue-200">
-                {firmActivityCounts.emails > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    {firmActivityCounts.emails}
-                  </span>
-                )}
-                {firmActivityCounts.calls > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    {firmActivityCounts.calls}
-                  </span>
-                )}
-                {firmActivityCounts.linkedin > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Linkedin className="h-3 w-3" />
-                    {firmActivityCounts.linkedin}
-                  </span>
-                )}
-              </div>
-            </div>
-            <p className="mt-1 text-[11px] text-blue-700/70 dark:text-blue-300/70">
-              Includes activity from every person at {firmDomainList.slice(0, 3).join(', ')}
-              {firmDomainList.length > 3 ? `, +${firmDomainList.length - 3} more` : ''}.
-            </p>
-          </div>
-        )}
-
         {tabs.length === 1 ? (
           // Single contact - show timeline directly
           <SingleContactTimeline tab={tabs[0]} />

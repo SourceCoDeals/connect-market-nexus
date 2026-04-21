@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, Component, ErrorInfo, ReactNode } from 'react';
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdmin } from '@/hooks/use-admin';
-import { AlertCircle, RefreshCw, Loader2, Users, Zap } from 'lucide-react';
+import { AlertCircle, RefreshCw, Loader2, Users, Zap, Link2, ChevronDown } from 'lucide-react';
 import { UsersTable } from '@/components/admin/UsersTable';
 import { MobileUsersTable } from '@/components/admin/MobileUsersTable';
 import { User } from '@/types';
@@ -13,8 +13,9 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRealtimeAdmin } from '@/hooks/use-realtime-admin';
 import { EnhancedUserManagement } from '@/components/admin/EnhancedUserManagement';
+import { InviteLinksManager } from '@/components/admin/permissions/InviteLinksManager';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useMarkUsersViewed } from '@/hooks/admin/use-mark-users-viewed';
-import { useBulkUserFirms } from '@/hooks/admin/use-bulk-user-firms';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
@@ -68,10 +69,6 @@ const MarketplaceUsersPage = () => {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const { markAsViewed } = useMarkUsersViewed();
   const [isBulkScoring, setIsBulkScoring] = useState(false);
-
-  // Batch-fetch firm data for all users in a single query (avoids N per-row requests)
-  const userIds = useMemo(() => usersData.map((u) => u.id), [usersData]);
-  const { data: firmDataMap } = useBulkUserFirms(userIds);
 
   const handleBulkScoreUnscored = async () => {
     const unscoredIds = usersData
@@ -184,7 +181,11 @@ const MarketplaceUsersPage = () => {
               disabled={isBulkScoring}
               className="gap-2"
             >
-              {isBulkScoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              {isBulkScoring ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4" />
+              )}
               Score All Unscored
             </Button>
           </div>
@@ -192,6 +193,21 @@ const MarketplaceUsersPage = () => {
       </div>
 
       <div className="px-4 md:px-8 py-8">
+        <Collapsible className="mb-4">
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center justify-between w-full px-4 py-3 bg-card border rounded-lg text-sm font-medium hover:bg-accent/50 transition-colors group">
+              <span className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-muted-foreground" />
+                Invite Links
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 border rounded-lg p-4 bg-card">
+            <InviteLinksManager />
+          </CollapsibleContent>
+        </Collapsible>
+
         {linkedBuyerCount > 0 && (
           <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
             <Users className="h-4 w-4 shrink-0" />
@@ -247,7 +263,6 @@ const MarketplaceUsersPage = () => {
                   onRevokeAdmin={revokeAdmin}
                   onDelete={deleteUser}
                   isLoading={isLoading}
-                  firmDataMap={firmDataMap ?? new Map()}
                 />
               </TableErrorBoundary>
             </div>

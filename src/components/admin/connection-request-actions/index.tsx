@@ -15,7 +15,7 @@
  *   (/admin/requests)
  */
 import { useState } from 'react';
-import { SendAgreementDialog } from '@/components/agreements/SendAgreementDialog';
+import { SendAgreementDialog } from '@/components/pandadoc/SendAgreementDialog';
 import { ConnectionRequestEmailDialog } from '@/components/admin/ConnectionRequestEmailDialog';
 import { Listing } from '@/types';
 import { AdminConnectionRequest } from '@/types/admin';
@@ -45,7 +45,8 @@ export function ConnectionRequestActions({
   flaggedByAdmin,
   flaggedAssignedToAdmin,
   isWebflowSubmission,
-}: ConnectionRequestActionsProps) {
+  showPendingBanner = true,
+}: ConnectionRequestActionsProps & { showPendingBanner?: boolean }) {
   const actions = useConnectionRequestActions({ user, listing, requestId });
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailActionType, setEmailActionType] = useState<'approve' | 'reject' | null>(null);
@@ -71,7 +72,11 @@ export function ConnectionRequestActions({
     setEmailDialogOpen(true);
   };
 
-  const handleEmailDialogConfirm = async (comment: string, senderEmail: string, customBody?: string) => {
+  const handleEmailDialogConfirm = async (
+    comment: string,
+    senderEmail: string,
+    customBody?: string,
+  ) => {
     if (emailActionType === 'approve') {
       await actions.handleAccept(senderEmail, customBody, comment);
     } else if (emailActionType === 'reject') {
@@ -93,6 +98,7 @@ export function ConnectionRequestActions({
     <div className="space-y-5">
       {/* ── DECISION / STATUS BANNERS ── */}
       <ApprovalSection
+        showPendingBanner={showPendingBanner}
         requestId={requestId}
         requestStatus={requestStatus}
         buyerName={buyerName}
@@ -309,7 +315,10 @@ export function ConnectionRequestActions({
       {/* ── EMAIL PREVIEW DIALOG ── */}
       <ConnectionRequestEmailDialog
         isOpen={emailDialogOpen}
-        onClose={() => { setEmailDialogOpen(false); setEmailActionType(null); }}
+        onClose={() => {
+          setEmailDialogOpen(false);
+          setEmailActionType(null);
+        }}
         onConfirm={handleEmailDialogConfirm}
         selectedRequest={dialogRequest}
         actionType={emailActionType}

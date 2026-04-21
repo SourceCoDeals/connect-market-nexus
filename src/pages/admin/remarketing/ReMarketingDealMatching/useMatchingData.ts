@@ -105,16 +105,7 @@ export function useMatchingData(listingId: string | undefined) {
     }
   }, [linkedUniverses, selectedUniverse]);
 
-  // CTO audit H2: cap the score query at 2000 rows. The initial fix capped
-  // at 250 for memory safety, but the match list is now virtualized via
-  // @tanstack/react-virtual (see ReMarketingDealMatching/index.tsx), so
-  // only the visible rows + overscan buffer are actually mounted. 2000 is
-  // a pragmatic ceiling on the query payload — enough to cover every buyer
-  // in a large universe, bounded enough to avoid pathological response
-  // sizes. Virtualization handles the render cost; this cap handles the
-  // network cost. Rows are ordered by composite_score DESC so any cut is
-  // "the top N matches", not random.
-  const MATCHING_SCORE_ROW_CAP = 2000;
+  // Fetch ALL existing scores for this listing (from all universes)
   const { data: allScores, isLoading: scoresLoading } = useQuery({
     queryKey: ['remarketing', 'scores', listingId],
     queryFn: async () => {
@@ -131,8 +122,7 @@ export function useMatchingData(listingId: string | undefined) {
         `,
         )
         .eq('listing_id', listingId!)
-        .order('composite_score', { ascending: false })
-        .limit(MATCHING_SCORE_ROW_CAP);
+        .order('composite_score', { ascending: false });
 
       if (error) throw error;
       return data || [];
@@ -202,14 +192,6 @@ export function useMatchingData(listingId: string | undefined) {
           const peName = buyer.pe_firm_name.toLowerCase().replace(/[^a-z0-9]/g, '');
           match = byName.get(peName);
         }
-        // CTO audit: match by parent PE firm name. Portfolio companies
-        // whose parent signed a fee agreement previously appeared as
-        // "No Fee" because the lookup only checked buyer.pe_firm_name.
-        if (!match && buyer.parent_pe_firm_name) {
-          const parentName = buyer.parent_pe_firm_name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          match = byName.get(parentName);
-          if (!match) match = byName.get(buyer.parent_pe_firm_name.toLowerCase());
-        }
 
         if (match) {
           lookup.set(score.id, { signed: true, signedAt: match.fee_agreement_signed_at });
@@ -219,52 +201,6 @@ export function useMatchingData(listingId: string | undefined) {
 
     return lookup;
   }, [feeAgreements, allScores]);
-
-  // Phase 5b: batch firm touchpoint counts for every buyer in this listing's
-  // score set. Feeds the "firm touchpoints" badge on BuyerMatchCard. Uses
-  // the dedicated get_firm_touchpoint_counts RPC (migration 20260722000000)
-  // so the page issues ONE query regardless of how many buyers are visible.
-  const buyerIdsForTouchpoints = useMemo(() => {
-    if (!allScores) return [] as string[];
-    const ids = new Set<string>();
-    for (const s of allScores) {
-      const buyerId = (s.buyer as { id?: string } | null | undefined)?.id;
-      if (buyerId) ids.add(buyerId);
-    }
-    return Array.from(ids);
-  }, [allScores]);
-
-  const { data: firmTouchpointRows } = useQuery({
-    queryKey: ['firm-touchpoint-counts', buyerIdsForTouchpoints],
-    queryFn: async () => {
-      if (buyerIdsForTouchpoints.length === 0) return [];
-      const { data, error } = await supabase.rpc('get_firm_touchpoint_counts', {
-        p_buyer_ids: buyerIdsForTouchpoints,
-      });
-      if (error) {
-        console.warn('[useMatchingData] get_firm_touchpoint_counts error:', error.message);
-        return [];
-      }
-      return (data || []) as Array<{
-        buyer_id: string;
-        firm_touchpoint_count: number;
-        firm_domain_count: number;
-      }>;
-    },
-    enabled: buyerIdsForTouchpoints.length > 0,
-    staleTime: 60_000,
-  });
-
-  const firmTouchpointByBuyer = useMemo(() => {
-    const map = new Map<string, { count: number; domainCount: number }>();
-    for (const row of firmTouchpointRows || []) {
-      map.set(row.buyer_id, {
-        count: Number(row.firm_touchpoint_count) || 0,
-        domainCount: Number(row.firm_domain_count) || 0,
-      });
-    }
-    return map;
-  }, [firmTouchpointRows]);
 
   // Fetch outreach records for this listing
   const { data: outreachRecords, refetch: refetchOutreach } = useQuery({
@@ -430,17 +366,12 @@ export function useMatchingData(listingId: string | undefined) {
           comparison = (a.geography_score || 0) - (b.geography_score || 0);
           break;
         case 'score_geo': {
-          // CTO audit: honor the universe's actual geography_weight rather
-          // than clamping to 50%. The old Math.min(0.5, ...) made the sort
-          // order diverge from the composite_score ranking for universes
-          // that configured geography_weight > 50, which was confusing.
+          // Use actual geography weight ratio instead of hardcoded 60/40
           const activeUniverse =
             selectedUniverse !== 'all'
               ? linkedUniverses?.find((u) => u.id === selectedUniverse)
               : linkedUniverses?.[0];
-          const rawGeoWeight = (activeUniverse?.geography_weight ?? 20) / 100;
-          // Clamp to [0, 1] only to guard against malformed weight config.
-          const geoRatio = Math.max(0, Math.min(1, rawGeoWeight));
+          const geoRatio = Math.min(0.5, (activeUniverse?.geography_weight || 20) / 100);
           const scoreRatio = 1 - geoRatio;
           const aWeighted =
             (a.composite_score || 0) * scoreRatio + (a.geography_score || 0) * geoRatio;
@@ -503,7 +434,6 @@ export function useMatchingData(listingId: string | undefined) {
     scoresLoading,
     filteredScores,
     feeAgreementLookup,
-    firmTouchpointByBuyer,
     outreachRecords,
     refetchOutreach,
     stats,

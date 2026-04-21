@@ -7,7 +7,11 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 export function parseArray(val: unknown): unknown[] {
   if (Array.isArray(val)) return val;
   if (typeof val === 'string' && val.startsWith('[')) {
-    try { return JSON.parse(val); } catch { return []; }
+    try {
+      return JSON.parse(val);
+    } catch {
+      return [];
+    }
   }
   return [];
 }
@@ -15,8 +19,32 @@ export function parseArray(val: unknown): unknown[] {
 /**
  * Helper to read a metadata field with camelCase fallback.
  */
-function meta(obj: Record<string, unknown>, snake: string, camel: string, fallback: unknown = ''): unknown {
+function meta(
+  obj: Record<string, unknown>,
+  snake: string,
+  camel: string,
+  fallback: unknown = '',
+): unknown {
   return obj[snake] || obj[camel] || fallback;
+}
+
+/**
+ * LAYER A: Guaranteed minimal profile creation via server-side RPC.
+ * This only creates a row if none exists — never overwrites.
+ * Cannot fail unless the user is not authenticated.
+ */
+export async function ensureMinimalProfile(): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc('ensure_profile_exists');
+    if (error) {
+      console.error('[profile-self-heal] ensure_profile_exists RPC failed:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[profile-self-heal] ensure_profile_exists threw:', err);
+    return false;
+  }
 }
 
 /**
@@ -53,7 +81,12 @@ export function buildProfileFromMetadata(authUser: SupabaseUser) {
     // Step 3 fields
     referral_source: meta(m, 'referral_source', 'referralSource', null),
     referral_source_detail: meta(m, 'referral_source_detail', 'referralSourceDetail', null),
-    target_acquisition_volume: meta(m, 'target_acquisition_volume', 'targetAcquisitionVolume', null),
+    target_acquisition_volume: meta(
+      m,
+      'target_acquisition_volume',
+      'targetAcquisitionVolume',
+      null,
+    ),
     // String fields
     ideal_target_description: meta(m, 'ideal_target_description', 'idealTargetDescription', ''),
     revenue_range_min: meta(m, 'revenue_range_min', 'revenueRangeMin', ''),
@@ -100,52 +133,97 @@ export function buildProfileFromMetadata(authUser: SupabaseUser) {
 }
 
 /**
+ * LAYER B: Best-effort enrichment from auth metadata.
  * Self-heal a missing profile by upserting from auth metadata.
  * Returns the created profile data or null on failure.
+ *
+ * IMPORTANT: This function first calls ensureMinimalProfile() (Layer A) to guarantee
+ * a row exists, then attempts the full enrichment (Layer B). If enrichment fails,
+ * the minimal profile still exists.
+ *
  * @param selectColumns - optional column list for the returning .select() (default: '*')
  */
 export async function selfHealProfile(
   authUser: SupabaseUser,
-  selectColumns = '*'
+  selectColumns = '*',
 ): Promise<Record<string, unknown> | null> {
-  const payload = buildProfileFromMetadata(authUser);
+  // LAYER A: Guarantee minimal profile exists first
+  await ensureMinimalProfile();
 
-  // Check if the profile already exists to avoid overwriting privileged fields
-  // (e.g., approval_status could be 'approved' — self-heal must not reset it to 'pending')
-  const { data: existingProfile, error: existingProfileError } = await supabase
-    .from('profiles')
-    .select('id, approval_status')
-    .eq('id', authUser.id)
-    .maybeSingle();
-  if (existingProfileError) throw existingProfileError;
+  // LAYER B: Best-effort enrichment
+  try {
+    const fullPayload = buildProfileFromMetadata(authUser);
 
-  if (existingProfile) {
-    // Profile exists — preserve approval_status and only fill in missing data
-    const { approval_status: _strip, ...safePayload } = payload;
-    const { data: updatedProfile, error: updateError } = await supabase
+    // Strip ALL fields protected by RLS WITH CHECK or that should never be client-updated
+    const {
+      approval_status: _stripApproval,
+      email_verified: _stripEmailVerified,
+      email: _stripEmail,
+      id: _stripId,
+      ...safePayload
+    } = fullPayload;
+
+    // Check if the profile already exists to avoid overwriting privileged fields
+    const { data: existingProfile, error: existingProfileError } = await supabase
       .from('profiles')
-      .update(safePayload as never)
+      .select('id, approval_status')
       .eq('id', authUser.id)
+      .maybeSingle();
+    if (existingProfileError) throw existingProfileError;
+
+    if (existingProfile) {
+      // Profile exists — update with safe payload only
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update(safePayload as never)
+        .eq('id', authUser.id)
+        .select(selectColumns)
+        .single();
+
+      if (updateError) {
+        console.warn('[profile-self-heal] Layer B enrichment failed:', updateError.message);
+        // Fall back to just fetching what exists
+        const { data: fallbackProfile } = await supabase
+          .from('profiles')
+          .select(selectColumns)
+          .eq('id', authUser.id)
+          .single();
+        return fallbackProfile as unknown as Record<string, unknown> | null;
+      }
+
+      return updatedProfile as unknown as Record<string, unknown> | null;
+    }
+
+    // Profile truly missing even after RPC — insert with pending status
+    const { data: newProfile, error: insertError } = await supabase
+      .from('profiles')
+      .upsert(fullPayload as never, { onConflict: 'id' })
       .select(selectColumns)
       .single();
 
-    if (updateError) {
-      return null;
+    if (insertError) {
+      console.warn('[profile-self-heal] Layer B insert failed:', insertError.message);
+      const { data: fallbackProfile } = await supabase
+        .from('profiles')
+        .select(selectColumns)
+        .eq('id', authUser.id)
+        .single();
+      return fallbackProfile as unknown as Record<string, unknown> | null;
     }
 
-    return updatedProfile as unknown as Record<string, unknown> | null;
+    return newProfile as unknown as Record<string, unknown> | null;
+  } catch (err) {
+    console.error('[profile-self-heal] Layer B threw, falling back to minimal fetch:', err);
+    // Even if enrichment completely fails, try to return whatever minimal profile exists
+    try {
+      const { data: minimalProfile } = await supabase
+        .from('profiles')
+        .select(selectColumns)
+        .eq('id', authUser.id)
+        .single();
+      return minimalProfile as unknown as Record<string, unknown> | null;
+    } catch {
+      return null;
+    }
   }
-
-  // Profile truly missing — insert with pending status
-  const { data: newProfile, error: insertError } = await supabase
-    .from('profiles')
-    .upsert(payload as never, { onConflict: 'id' })
-    .select(selectColumns)
-    .single();
-
-  if (insertError) {
-    return null;
-  }
-
-  return newProfile as unknown as Record<string, unknown> | null;
 }

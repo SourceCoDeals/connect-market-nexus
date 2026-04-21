@@ -1,0 +1,1 @@
+UPDATE listings SET remarketing_status = 'active' WHERE id = '64b1af46-b26c-4668-aac8-d755a3fd2546';

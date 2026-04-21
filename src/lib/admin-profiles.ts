@@ -10,72 +10,72 @@ export const ADMIN_PROFILES: Record<string, AdminProfile> = {
   'adam.haile@sourcecodeals.com': {
     email: 'adam.haile@sourcecodeals.com',
     name: 'Adam Haile',
-    title: 'Founder & CEO',
+    title: 'Head of Growth',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'ahaile14@gmail.com': {
     email: 'ahaile14@gmail.com',
     name: 'Adam Haile',
-    title: 'Founder & CEO',
+    title: 'Head of Growth',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'tomos.mughan@sourcecodeals.com': {
     email: 'tomos.mughan@sourcecodeals.com',
     name: 'Tomos Mughan',
     title: 'CEO',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'bill.martin@sourcecodeals.com': {
     email: 'bill.martin@sourcecodeals.com',
     name: 'Bill Martin',
     title: 'Principal & SVP - Growth',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'kyle.collins@sourcecodeals.com': {
     email: 'kyle.collins@sourcecodeals.com',
     name: 'Kyle Collins',
     title: 'Team Member',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'daniel.kobayashi@sourcecodeals.com': {
     email: 'daniel.kobayashi@sourcecodeals.com',
     name: 'Daniel Kobayashi',
     title: 'Team Member',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'oz.delaluna@captarget.com': {
     email: 'oz.delaluna@captarget.com',
     name: 'Oz De La Luna',
     title: 'Team Member',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'oz.delaluna@sourcecodeals.com': {
     email: 'oz.delaluna@sourcecodeals.com',
     name: 'Oz De La Luna',
     title: 'Team Member',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'brandon.hall@sourcecodeals.com': {
     email: 'brandon.hall@sourcecodeals.com',
     name: 'Brandon Hall',
-    title: 'Deal Owner',
+    title: 'Senior Associate',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'alia.ballout@sourcecodeals.com': {
     email: 'alia.ballout@sourcecodeals.com',
     name: 'Alia Ballout',
-    title: 'Deal Owner',
+    title: 'Senior Associate',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
 };
 
@@ -86,11 +86,15 @@ export interface DealOwnerSender {
 }
 
 export const DEAL_OWNER_SENDERS: DealOwnerSender[] = [
-  { email: 'support@sourcecodeals.com', name: 'SourceCo Support', title: 'Default' },
-  { email: 'adam.haile@sourcecodeals.com', name: 'Adam Haile', title: 'Founder & CEO' },
-  { email: 'bill.martin@sourcecodeals.com', name: 'Bill Martin', title: 'Principal & SVP - Growth' },
-  { email: 'alia.ballout@sourcecodeals.com', name: 'Alia Ballout', title: 'Deal Owner' },
-  { email: 'brandon.hall@sourcecodeals.com', name: 'Brandon Hall', title: 'Deal Owner' },
+  { email: 'support@sourcecodeals.com', name: 'The SourceCo Team', title: 'General' },
+  { email: 'adam.haile@sourcecodeals.com', name: 'Adam Haile', title: 'Head of Growth' },
+  {
+    email: 'bill.martin@sourcecodeals.com',
+    name: 'Bill Martin',
+    title: 'Principal & SVP - Growth',
+  },
+  { email: 'alia.ballout@sourcecodeals.com', name: 'Alia Ballout', title: 'Senior Associate' },
+  { email: 'brandon.hall@sourcecodeals.com', name: 'Brandon Hall', title: 'Senior Associate' },
 ];
 
 export const getAdminProfile = (email: string): AdminProfile | null => {

@@ -19,7 +19,7 @@ interface InvokeResult<T = unknown> {
  * can never hang the entire request flow (known Supabase auth deadlock risk).
  */
 async function getAccessTokenWithTimeout(): Promise<string | null> {
-  // Debug logging removed for production
+  console.log('[invoke-with-timeout] Starting session lookup…');
   try {
     const result = await Promise.race([
       supabase.auth.getSession(),
@@ -31,7 +31,7 @@ async function getAccessTokenWithTimeout(): Promise<string | null> {
       ),
     ]);
     const token = result.data?.session?.access_token ?? null;
-    // console.log('[invoke-with-timeout] Session lookup done, token present:', !!token);
+    console.log('[invoke-with-timeout] Session lookup done, token present:', !!token);
     return token;
   } catch (err) {
     console.error('[invoke-with-timeout] Session lookup failed:', err);
@@ -54,7 +54,7 @@ function getCachedAccessToken(): string | null {
     const parsed = JSON.parse(raw);
     const token = parsed?.access_token ?? parsed?.currentSession?.access_token ?? null;
     if (token) {
-      // console.log('[invoke-with-timeout] Using cached token from localStorage');
+      console.log('[invoke-with-timeout] Using cached token from localStorage');
     }
     return token;
   } catch {
@@ -106,7 +106,7 @@ export async function invokeWithTimeout<T = unknown>(
     }
 
     const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
-    // console.log('[invoke-with-timeout] Starting fetch to', functionName);
+    console.log('[invoke-with-timeout] Starting fetch to', functionName);
 
     const response = await fetch(url, {
       method: 'POST',

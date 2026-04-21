@@ -9,7 +9,20 @@
  */
 import { useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Globe, User, Building2, Mail, Phone, Briefcase, ExternalLink, FileText, Clock, CheckCircle, Info } from 'lucide-react';
+import {
+  Globe,
+  User,
+  Building2,
+  Mail,
+  Phone,
+  Briefcase,
+  ExternalLink,
+  FileText,
+  Clock,
+  CheckCircle,
+  Info,
+  Tag,
+} from 'lucide-react';
 import { ConnectionRequestEmailDialog } from './ConnectionRequestEmailDialog';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -18,8 +31,13 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AdminConnectionRequest } from '@/types/admin';
 import { LeadRequestActions } from './LeadRequestActions';
+import { LeadEmailTrackingCard } from './LeadEmailTrackingCard';
+
 import { ApprovalSection } from './connection-request-actions/ApprovalSection';
-import { FlagReviewBanner, FlagReviewPopover } from './connection-request-actions/FlagReviewSection';
+import {
+  FlagReviewBanner,
+  FlagReviewPopover,
+} from './connection-request-actions/FlagReviewSection';
 import { useUpdateConnectionRequestStatus } from '@/hooks/admin/use-connection-request-status';
 import { useFlagConnectionRequest } from '@/hooks/admin/use-flag-connection-request';
 import { useSendMessage } from '@/hooks/use-connection-messages';
@@ -29,9 +47,10 @@ import type { AdminProfile } from './connection-request-actions/types';
 
 interface WebflowLeadDetailProps {
   request: AdminConnectionRequest;
+  showPendingBanner?: boolean;
 }
 
-export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
+export function WebflowLeadDetail({ request, showPendingBanner = true }: WebflowLeadDetailProps) {
   const meta = (request.source_metadata || {}) as Record<string, unknown>;
   const rawPayload = (meta.raw_payload as Record<string, unknown>) || {};
   const payload = (rawPayload.payload as Record<string, unknown>) || {};
@@ -41,7 +60,13 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
   const submittedAt = (meta.submitted_at as string) || request.created_at;
 
   // Status & approval state
-  const requestStatus = (request.status === 'converted' ? 'approved' : request.status === 'notified' || request.status === 'reviewed' ? 'pending' : request.status) as 'pending' | 'approved' | 'rejected' | 'on_hold';
+  const requestStatus = (
+    request.status === 'converted'
+      ? 'approved'
+      : request.status === 'notified' || request.status === 'reviewed'
+        ? 'pending'
+        : request.status
+  ) as 'pending' | 'approved' | 'rejected' | 'on_hold';
   const updateStatus = useUpdateConnectionRequestStatus();
   const flagMutation = useFlagConnectionRequest();
   const sendMessage = useSendMessage();
@@ -74,16 +99,24 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
     setEmailActionType(action);
     setEmailDialogOpen(true);
   };
-  const handleEmailDialogConfirm = async (comment: string, senderEmail: string, customBody?: string) => {
+  const handleEmailDialogConfirm = async (
+    comment: string,
+    senderEmail: string,
+    customBody?: string,
+  ) => {
     if (!request.id) return;
 
     // Look up sender info
     const { DEAL_OWNER_SENDERS } = await import('@/lib/admin-profiles');
-    const senderInfo = senderEmail ? DEAL_OWNER_SENDERS.find(s => s.email === senderEmail) : null;
+    const senderInfo = senderEmail ? DEAL_OWNER_SENDERS.find((s) => s.email === senderEmail) : null;
 
     if (emailActionType === 'approve') {
       try {
-        await updateStatus.mutateAsync({ requestId: request.id, status: 'approved', notes: comment || undefined });
+        await updateStatus.mutateAsync({
+          requestId: request.id,
+          status: 'approved',
+          notes: comment || undefined,
+        });
       } catch (err) {
         console.error('[webflow-approve] Status update failed:', err);
         return; // Don't send email if status update failed
@@ -91,16 +124,22 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
 
       // Record decision in message thread for audit trail
       const listingName = request.listing?.title || 'this deal';
-      sendMessage.mutateAsync({
-        connection_request_id: request.id,
-        body: `Request for ${listingName} has been approved.`,
-        sender_role: 'admin',
-        message_type: 'decision',
-      }).catch((err) => console.error('[webflow-approve] Decision message failed:', err));
+      sendMessage
+        .mutateAsync({
+          connection_request_id: request.id,
+          body: `Request for ${listingName} has been approved.`,
+          sender_role: 'admin',
+          message_type: 'decision',
+        })
+        .catch((err) => console.error('[webflow-approve] Decision message failed:', err));
 
       // Send approval email
       const buyerEmail = request.lead_email || request.user?.email;
-      const buyerName = request.lead_name || (request.user ? `${request.user.first_name || ''} ${request.user.last_name || ''}`.trim() : '');
+      const buyerName =
+        request.lead_name ||
+        (request.user
+          ? `${request.user.first_name || ''} ${request.user.last_name || ''}`.trim()
+          : '');
       const listingTitle = request.listing?.title || 'General Inquiry';
       const listingId = request.listing?.id;
       if (buyerEmail) {
@@ -115,11 +154,13 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
               listingTitle,
               listingId: listingId || undefined,
               requestId: request.id,
-              ...(senderEmail && senderInfo ? {
-                senderEmail: senderInfo.email,
-                senderName: senderInfo.name,
-                replyTo: senderInfo.email,
-              } : {}),
+              ...(senderEmail && senderInfo
+                ? {
+                    senderEmail: senderInfo.email,
+                    senderName: senderInfo.name,
+                    replyTo: senderInfo.email,
+                  }
+                : {}),
               ...(customBody ? { customBodyText: customBody } : {}),
             },
           })
@@ -127,23 +168,33 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
       }
     } else if (emailActionType === 'reject') {
       try {
-        await updateStatus.mutateAsync({ requestId: request.id, status: 'rejected', notes: comment || rejectNote || undefined });
+        await updateStatus.mutateAsync({
+          requestId: request.id,
+          status: 'rejected',
+          notes: comment || rejectNote || undefined,
+        });
       } catch (err) {
         console.error('[webflow-reject] Status update failed:', err);
         return; // Don't send email if status update failed
       }
 
       // Record decision in message thread for audit trail
-      sendMessage.mutateAsync({
-        connection_request_id: request.id,
-        body: comment || rejectNote || 'Request declined.',
-        sender_role: 'admin',
-        message_type: 'decision',
-      }).catch((err) => console.error('[webflow-reject] Decision message failed:', err));
+      sendMessage
+        .mutateAsync({
+          connection_request_id: request.id,
+          body: comment || rejectNote || 'Request declined.',
+          sender_role: 'admin',
+          message_type: 'decision',
+        })
+        .catch((err) => console.error('[webflow-reject] Decision message failed:', err));
 
       // Send rejection email
       const buyerEmail = request.lead_email || request.user?.email;
-      const buyerName = request.lead_name || (request.user ? `${request.user.first_name || ''} ${request.user.last_name || ''}`.trim() : '');
+      const buyerName =
+        request.lead_name ||
+        (request.user
+          ? `${request.user.first_name || ''} ${request.user.last_name || ''}`.trim()
+          : '');
       const companyName = request.listing?.title || 'the listing';
       if (buyerEmail) {
         supabase.functions
@@ -153,11 +204,13 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
               buyerEmail,
               buyerName: buyerName || buyerEmail,
               companyName,
-              ...(senderEmail && senderInfo ? {
-                senderEmail: senderInfo.email,
-                senderName: senderInfo.name,
-                replyTo: senderInfo.email,
-              } : {}),
+              ...(senderEmail && senderInfo
+                ? {
+                    senderEmail: senderInfo.email,
+                    senderName: senderInfo.name,
+                    replyTo: senderInfo.email,
+                  }
+                : {}),
               ...(customBody ? { customBodyText: customBody } : {}),
             },
           })
@@ -191,9 +244,22 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
   // Clean URL for display
   const displayUrl = pageUrl ? pageUrl.split('?')[0].split('#')[0] : '';
 
-  // Extract UTM data
+  // Extract UTM data - prefer structured source_metadata fields, fallback to parsing pageUrl
   const utmData: Record<string, string> = {};
-  if (pageUrl) {
+  const utmFields = [
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'utm_term',
+  ] as const;
+  for (const field of utmFields) {
+    if (meta[field] && typeof meta[field] === 'string') {
+      utmData[field.replace('utm_', '')] = meta[field] as string;
+    }
+  }
+  // Fallback: parse from pageUrl if not in structured fields
+  if (Object.keys(utmData).length === 0 && pageUrl) {
     try {
       const url = new URL(pageUrl);
       url.searchParams.forEach((val, key) => {
@@ -201,7 +267,9 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
           utmData[key.replace('utm_', '')] = val;
         }
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   const hasUser = !!request.user;
@@ -210,6 +278,7 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
     <div className="space-y-5">
       {/* ── DECISION / STATUS BANNERS ── */}
       <ApprovalSection
+        showPendingBanner={showPendingBanner}
         requestId={request.id}
         requestStatus={requestStatus}
         buyerName={leadName}
@@ -285,9 +354,30 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
               )}
               {Object.keys(utmData).length > 0 && (
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {utmData.source && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300">{utmData.source}</Badge>}
-                  {utmData.campaign && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300">{utmData.campaign}</Badge>}
-                  {utmData.medium && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300">{utmData.medium}</Badge>}
+                  {utmData.source && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300"
+                    >
+                      {utmData.source}
+                    </Badge>
+                  )}
+                  {utmData.campaign && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300"
+                    >
+                      {utmData.campaign}
+                    </Badge>
+                  )}
+                  {utmData.medium && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300"
+                    >
+                      {utmData.medium}
+                    </Badge>
+                  )}
                 </div>
               )}
             </div>
@@ -318,38 +408,58 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
                   Matched to Marketplace Profile
                 </p>
                 <p className="text-xs text-emerald-700/70 dark:text-emerald-300/70">
-                  This lead has an existing account — you can proceed through the marketplace workflow
+                  This lead has an existing account — you can proceed through the marketplace
+                  workflow
                 </p>
               </div>
             </div>
             {request.user && (
               <div className="mt-2 flex items-center gap-4 text-xs text-emerald-800/80 dark:text-emerald-200/80">
                 {request.user.company && (
-                  <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {request.user.company}</span>
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-3 w-3" /> {request.user.company}
+                  </span>
                 )}
                 {request.user.buyerType && (
-                  <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" /> {request.user.buyerType}</span>
+                  <span className="flex items-center gap-1">
+                    <Briefcase className="h-3 w-3" /> {request.user.buyerType}
+                  </span>
                 )}
                 {request.user.email && (
-                  <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {request.user.email}</span>
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> {request.user.email}
+                  </span>
                 )}
                 {request.user.approval_status && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="inline-flex items-center gap-1.5 text-xs cursor-help border-b border-dotted border-muted-foreground/40 pb-0.5">
-                          <span className={cn(
-                            "h-2 w-2 rounded-full shrink-0",
-                            request.user.approval_status === 'approved' ? 'bg-emerald-500' :
-                            request.user.approval_status === 'rejected' ? 'bg-destructive' : 'bg-amber-500'
-                          )} />
-                          <span className={cn(
-                            "font-medium",
-                            request.user.approval_status === 'approved' ? 'text-emerald-700 dark:text-emerald-400' :
-                            request.user.approval_status === 'rejected' ? 'text-destructive' : 'text-amber-700 dark:text-amber-400'
-                          )}>
-                            {request.user.approval_status === 'approved' ? 'Marketplace Approved' :
-                             request.user.approval_status === 'rejected' ? 'Marketplace Rejected' : 'Marketplace Pending'}
+                          <span
+                            className={cn(
+                              'h-2 w-2 rounded-full shrink-0',
+                              request.user.approval_status === 'approved'
+                                ? 'bg-emerald-500'
+                                : request.user.approval_status === 'rejected'
+                                  ? 'bg-destructive'
+                                  : 'bg-amber-500',
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              'font-medium',
+                              request.user.approval_status === 'approved'
+                                ? 'text-emerald-700 dark:text-emerald-400'
+                                : request.user.approval_status === 'rejected'
+                                  ? 'text-destructive'
+                                  : 'text-amber-700 dark:text-amber-400',
+                            )}
+                          >
+                            {request.user.approval_status === 'approved'
+                              ? 'Marketplace Approved'
+                              : request.user.approval_status === 'rejected'
+                                ? 'Marketplace Rejected'
+                                : 'Marketplace Pending'}
                           </span>
                           <Info className="h-3 w-3 text-muted-foreground/60" />
                         </span>
@@ -358,15 +468,15 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
                         {request.user.approval_status === 'approved'
                           ? 'This user has been approved to use the SourceCo Marketplace.'
                           : request.user.approval_status === 'rejected'
-                          ? "This user's marketplace account application was rejected."
-                          : 'This user has a marketplace account but has not yet been approved.'}
+                            ? "This user's marketplace account application was rejected."
+                            : 'This user has a marketplace account but has not yet been approved.'}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
               </div>
             )}
-        </CardContent>
+          </CardContent>
         </Card>
       ) : (
         <Card className="border-border bg-muted/30">
@@ -376,9 +486,7 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
                 <User className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Not a Marketplace User
-                </p>
+                <p className="text-sm font-semibold text-foreground">Not a Marketplace User</p>
                 <p className="text-xs text-muted-foreground">
                   This lead does not have an existing marketplace account
                 </p>
@@ -403,19 +511,40 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
               <CardContent className="px-4 pb-4 pt-0">
                 <div className="grid grid-cols-2 gap-3">
                   {request.lead_name && (
-                    <InfoField label="Name" value={request.lead_name} icon={<User className="h-3 w-3" />} />
+                    <InfoField
+                      label="Name"
+                      value={request.lead_name}
+                      icon={<User className="h-3 w-3" />}
+                    />
                   )}
                   {request.lead_email && (
-                    <InfoField label="Email" value={request.lead_email} icon={<Mail className="h-3 w-3" />} isEmail />
+                    <InfoField
+                      label="Email"
+                      value={request.lead_email}
+                      icon={<Mail className="h-3 w-3" />}
+                      isEmail
+                    />
                   )}
                   {request.lead_phone && (
-                    <InfoField label="Phone" value={request.lead_phone} icon={<Phone className="h-3 w-3" />} />
+                    <InfoField
+                      label="Phone"
+                      value={request.lead_phone}
+                      icon={<Phone className="h-3 w-3" />}
+                    />
                   )}
                   {request.lead_company && (
-                    <InfoField label="Company" value={request.lead_company} icon={<Building2 className="h-3 w-3" />} />
+                    <InfoField
+                      label="Company"
+                      value={request.lead_company}
+                      icon={<Building2 className="h-3 w-3" />}
+                    />
                   )}
                   {request.lead_role && (
-                    <InfoField label="Role" value={request.lead_role} icon={<Briefcase className="h-3 w-3" />} />
+                    <InfoField
+                      label="Role"
+                      value={request.lead_role}
+                      icon={<Briefcase className="h-3 w-3" />}
+                    />
                   )}
                 </div>
 
@@ -423,7 +552,9 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
                 {Object.keys(formData).length > 0 && (
                   <>
                     <Separator className="my-3" />
-                    <p className="text-xs font-medium text-muted-foreground mb-2">All Form Fields</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">
+                      All Form Fields
+                    </p>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(formData)
                         .filter(([key]) => key.toLowerCase() !== 'message')
@@ -459,7 +590,9 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
                   {request.user_message}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground italic">No message submitted with this form.</p>
+                <p className="text-sm text-muted-foreground italic">
+                  No message submitted with this form.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -500,6 +633,67 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
 
         {/* Right column: Lead Management */}
         <div className="space-y-4">
+          <LeadEmailTrackingCard
+            connectionRequestId={request.id}
+            leadEmail={request.lead_email}
+            leadName={request.lead_name}
+            dealTitle={request.listing?.title}
+            listingId={request.listing?.id}
+            emailDispatchStatus={request.lead_agreement_email_status}
+            hasFirm={!!request.firm_id}
+            isDuplicate={
+              request.lead_agreement_email_status === 'duplicate_skipped' ||
+              !!(request.source_metadata as any)?.is_duplicate
+            }
+            leadNdaSigned={!!request.lead_nda_signed}
+            leadFeeSigned={!!request.lead_fee_agreement_signed}
+            source={request.source}
+          />
+          {/* Source Attribution */}
+          {Object.keys(utmData).length > 0 && (
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-muted-foreground" />
+                  Source Attribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 pt-0">
+                <div className="space-y-2">
+                  {utmData.source && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Source</span>
+                      <span className="font-medium text-foreground">{utmData.source}</span>
+                    </div>
+                  )}
+                  {utmData.medium && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Medium</span>
+                      <span className="font-medium text-foreground">{utmData.medium}</span>
+                    </div>
+                  )}
+                  {utmData.campaign && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Campaign</span>
+                      <span className="font-medium text-foreground">{utmData.campaign}</span>
+                    </div>
+                  )}
+                  {utmData.content && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Content</span>
+                      <span className="font-medium text-foreground">{utmData.content}</span>
+                    </div>
+                  )}
+                  {utmData.term && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Term</span>
+                      <span className="font-medium text-foreground">{utmData.term}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <LeadRequestActions request={request} />
         </div>
       </div>
@@ -507,7 +701,10 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
       {/* ── EMAIL PREVIEW DIALOG ── */}
       <ConnectionRequestEmailDialog
         isOpen={emailDialogOpen}
-        onClose={() => { setEmailDialogOpen(false); setEmailActionType(null); }}
+        onClose={() => {
+          setEmailDialogOpen(false);
+          setEmailActionType(null);
+        }}
         onConfirm={handleEmailDialogConfirm}
         selectedRequest={request}
         actionType={emailActionType}
@@ -517,14 +714,26 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
   );
 }
 
-function InfoField({ label, value, icon, isEmail }: { label: string; value: string; icon: React.ReactNode; isEmail?: boolean }) {
+function InfoField({
+  label,
+  value,
+  icon,
+  isEmail,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  isEmail?: boolean;
+}) {
   return (
     <div className="flex items-start gap-2">
       <span className="mt-0.5 text-muted-foreground">{icon}</span>
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
         {isEmail ? (
-          <a href={`mailto:${value}`} className="text-xs font-medium text-primary hover:underline">{value}</a>
+          <a href={`mailto:${value}`} className="text-xs font-medium text-primary hover:underline">
+            {value}
+          </a>
         ) : (
           <p className="text-xs font-medium text-foreground">{value}</p>
         )}

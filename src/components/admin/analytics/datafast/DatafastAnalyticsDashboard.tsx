@@ -13,7 +13,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUnifiedAnalytics } from '@/hooks/useUnifiedAnalytics';
-import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 import { AnalyticsFiltersProvider, useAnalyticsFilters } from '@/contexts/AnalyticsFiltersContext';
 import { KPIStrip } from './KPIStrip';
 import { DailyVisitorsChart } from './DailyVisitorsChart';
@@ -56,10 +55,7 @@ function DashboardContent() {
       )
     : parseInt(timeRange);
 
-  const { data, isLoading, refetch, isRefetching, error } = useUnifiedAnalytics(
-    timeRangeDays,
-    filters,
-  );
+  const { data, isLoading, refetch, isRefetching } = useUnifiedAnalytics(timeRangeDays, filters);
 
   return (
     <div className="space-y-6 pb-24">
@@ -138,15 +134,7 @@ function DashboardContent() {
         </Button>
       </div>
 
-      {error && (
-        <DashboardErrorBanner
-          title="Couldn't load analytics"
-          error={error as Error}
-          onRetry={() => refetch()}
-        />
-      )}
-
-      {error ? null : isLoading ? (
+      {isLoading ? (
         <LoadingSkeleton />
       ) : data ? (
         <>

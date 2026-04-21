@@ -193,6 +193,24 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     icon: Tag,
     dynamicOptions: true,
   },
+  // ── Credibility ───────────────────────────────────────────────────
+  {
+    key: 'credibility_tier',
+    label: 'Website Credibility',
+    type: 'select',
+    group: 'Scoring',
+    icon: Star,
+    accessor: (item: Record<string, unknown>) => {
+      const enrichment = item.website_enrichment_data as Record<string, unknown> | null;
+      return (enrichment?.credibility_tier as string) || null;
+    },
+    options: [
+      { label: 'Established', value: 'established' },
+      { label: 'Emerging', value: 'emerging' },
+      { label: 'Low signal', value: 'low_signal' },
+      { label: 'Shell site', value: 'shell' },
+    ],
+  },
   // ── Scoring ───────────────────────────────────────────────────────
   {
     key: 'quality_label',

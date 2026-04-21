@@ -11,24 +11,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 // No icon imports needed
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function MyDealsTab() {
-  const {
-    data: deals,
-    isLoading: dealsLoading,
-    error: dealsError,
-    refetch: refetchDeals,
-  } = useMyDeals();
-  const {
-    data: stats,
-    isLoading: statsLoading,
-    error: statsError,
-    refetch: refetchStats,
-  } = useMyDealStats();
+  const { data: deals, isLoading: dealsLoading } = useMyDeals();
+  const { data: stats, isLoading: statsLoading } = useMyDealStats();
   const navigate = useNavigate();
 
   const [filter, setFilter] = useState<string>('active');
@@ -113,20 +102,6 @@ export function MyDealsTab() {
 
     return filtered;
   }, [deals, filter, sortBy]);
-
-  const combinedError = (statsError || dealsError) as Error | null | undefined;
-  if (combinedError) {
-    return (
-      <DashboardErrorBanner
-        title="Couldn't load My Deals"
-        error={combinedError}
-        onRetry={() => {
-          refetchStats();
-          refetchDeals();
-        }}
-      />
-    );
-  }
 
   if (statsLoading) {
     return (

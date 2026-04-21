@@ -64,6 +64,10 @@ const Signup = () => {
   const { isLoading } = useAuth();
   const [searchParams] = useSearchParams();
 
+  // Capture invite token and domain restriction from URL
+  const inviteToken = searchParams.get('invite') || '';
+  const inviteDomain = searchParams.get('domain') || '';
+
   // GAP 16+18: Capture deal context from URL params or localStorage
   const dealContext = useMemo(() => {
     const fromDealParam = searchParams.get('from_deal');
@@ -108,6 +112,9 @@ const Signup = () => {
     const draft = loadDraft();
     const base = draft ? { ...INITIAL_FORM_DATA, ...draft } : INITIAL_FORM_DATA;
 
+    // Capture invite token from URL
+    const inviteParam = new URLSearchParams(window.location.search).get('invite');
+    if (inviteParam) base.inviteToken = inviteParam;
     // GAP 17: Auto-populate from URL params (landing page can pass name, email, phone, company)
     try {
       const params = new URLSearchParams(window.location.search);
@@ -180,16 +187,22 @@ const Signup = () => {
       clearDraft();
     } catch (error: unknown) {
       console.error('Signup error:', error);
-      let errorMessage = 'An unexpected error occurred. Please try again.';
-      const msg = (error as Error).message || '';
-      const msgLower = msg.toLowerCase();
-      if (msgLower.includes('user already registered'))
-        errorMessage = 'An account with this email already exists.';
-      else if (msgLower.includes('password'))
-        errorMessage = 'Password requirements not met. Please use at least 6 characters.';
-      else if (msgLower.includes('email') && (msgLower.includes('invalid') || msgLower.includes('not valid') || msgLower.includes('format')))
-        errorMessage = 'Invalid email address.';
-      else if (msg) errorMessage = msg;
+      const msg = ((error as Error).message || '').toLowerCase();
+      let errorMessage: string;
+      if (msg.includes('user already registered') || msg.includes('already exists'))
+        errorMessage = 'An account with this email already exists. Please log in instead.';
+      else if (msg.includes('password'))
+        errorMessage = 'Password requirements not met. Please use at least 8 characters.';
+      else if (
+        msg.includes('email') &&
+        (msg.includes('invalid') || msg.includes('not valid') || msg.includes('format'))
+      )
+        errorMessage = 'Please enter a valid email address.';
+      else if (msg.includes('rate') || msg.includes('limit') || msg.includes('too many'))
+        errorMessage = 'Too many attempts. Please wait a moment and try again.';
+      else
+        errorMessage =
+          'Something went wrong creating your account. Please try again or contact support.';
       toast({ variant: 'destructive', title: 'Signup failed', description: errorMessage });
     } finally {
       setIsSubmitting(false);
@@ -199,7 +212,13 @@ const Signup = () => {
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
-        return <SignupStepAccount formData={formData} onChange={handleInputChange} />;
+        return (
+          <SignupStepAccount
+            formData={formData}
+            onChange={handleInputChange}
+            inviteDomain={inviteDomain}
+          />
+        );
       case 1:
         return <SignupStepPersonal formData={formData} onChange={handleInputChange} />;
       case 2:
@@ -329,16 +348,30 @@ const Signup = () => {
           <StepIndicator currentStep={currentStep} totalSteps={STEPS.length} />
         </CardHeader>
         <CardContent className="px-0">
-          {/* GAP 16: Show deal context banner when arriving from a landing page */}
-          {dealContext.is_landing_page_referral && dealContext.deal_title && currentStep === 0 && (
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-6">
-              <p className="text-xs text-muted-foreground font-['Inter',system-ui,sans-serif]">
-                Sign up to receive full details on{' '}
-                <span className="font-semibold text-foreground">{dealContext.deal_title}</span> and
-                access 50+ additional off-market deals.
+          {/* Invite link banner */}
+          {inviteToken && currentStep === 0 && (
+            <div className="border-l-2 border-emerald-500 pl-4 py-3 mb-6">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Invitation accepted
+              </p>
+              <p className="text-sm text-foreground/80 mt-1">
+                Your account will be pre-approved upon completion.
               </p>
             </div>
           )}
+          {/* GAP 16: Show deal context banner when arriving from a landing page */}
+          {!inviteToken &&
+            dealContext.is_landing_page_referral &&
+            dealContext.deal_title &&
+            currentStep === 0 && (
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-6">
+                <p className="text-xs text-muted-foreground font-['Inter',system-ui,sans-serif]">
+                  Sign up to receive full details on{' '}
+                  <span className="font-semibold text-foreground">{dealContext.deal_title}</span>{' '}
+                  and access 50+ additional off-market deals.
+                </p>
+              </div>
+            )}
           {validationErrors.length > 0 && (
             <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-lg mb-6">
               <ul className="list-disc pl-4 space-y-1 text-sm">
@@ -364,37 +397,22 @@ const Signup = () => {
                 >
                   {isLoading || isSubmitting ? 'Creating account...' : 'Create account'}
                 </Button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    handleSubmit(e as unknown as React.FormEvent);
-                  }}
-                  disabled={isLoading || isSubmitting}
-                  className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Skip — complete after approval
-                </button>
               </>
             ) : currentStep === 2 ? (
               <>
+                <p className="text-[11px] text-center text-muted-foreground">
+                  All fields on this step are optional.
+                </p>
                 <Button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={isLoading || isSubmitting}
-                  className="w-full text-sm font-medium"
-                >
-                  Continue
-                </Button>
-                <button
                   type="button"
                   onClick={() => {
                     setCurrentStep((p) => p + 1);
                   }}
                   disabled={isLoading || isSubmitting}
-                  className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="w-full text-sm font-medium"
                 >
-                  Skip this step
-                </button>
+                  Continue
+                </Button>
               </>
             ) : (
               <Button

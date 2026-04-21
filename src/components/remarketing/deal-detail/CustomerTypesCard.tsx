@@ -48,8 +48,7 @@ export const CustomerTypesCard = ({
       setIsEditOpen(false);
       toast.success('Customer information updated');
     } catch (error) {
-      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
-      toast.error(`Failed to save: ${message}`);
+      toast.error('Failed to save');
     } finally {
       setIsSaving(false);
     }

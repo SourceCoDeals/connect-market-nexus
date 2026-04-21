@@ -34,7 +34,6 @@ import {
 import { format } from 'date-fns';
 import { EmailCatalog } from '@/components/admin/emails/EmailCatalog';
 import { AdminEmailRouting } from '@/components/admin/emails/AdminEmailRouting';
-import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 type TimeRange = '24h' | '7d' | '30d' | 'all';
 
@@ -68,12 +67,7 @@ export default function EmailDashboardPage() {
   const [templateFilter, setTemplateFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const {
-    data: emails = [],
-    isLoading,
-    error: emailsError,
-    refetch: refetchEmails,
-  } = useQuery({
+  const { data: emails = [], isLoading } = useQuery({
     queryKey: ['admin-emails', timeRange],
     queryFn: async () => {
       let query = supabase
@@ -159,13 +153,6 @@ export default function EmailDashboardPage() {
         </TabsList>
 
         <TabsContent value="delivery" className="space-y-6 mt-0">
-          {emailsError && (
-            <DashboardErrorBanner
-              title="Couldn't load outbound emails"
-              error={emailsError as Error}
-              onRetry={() => refetchEmails()}
-            />
-          )}
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Card>

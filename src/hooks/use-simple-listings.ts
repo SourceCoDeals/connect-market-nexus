@@ -119,7 +119,7 @@ async function fetchListings(
   const listings = ((data || []) as unknown as ListingRow[]).map((listing) => ({
     ...listing,
     status: listing.status as ListingStatus,
-    metric_3_type: 'custom' as const,
+    metric_3_type: (listing.metric_3_type as 'employees' | 'custom') || 'employees',
     ownerNotes: listing.owner_notes || '',
     createdAt: listing.created_at,
     updatedAt: listing.updated_at,

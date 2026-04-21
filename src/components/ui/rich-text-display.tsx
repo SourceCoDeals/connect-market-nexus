@@ -12,19 +12,39 @@ export function RichTextDisplay({ content, className, compact = false }: RichTex
   const sanitizedContent = DOMPurify.sanitize(content, {
     ALLOWED_TAGS: [
       // Text formatting
-      'p', 'br', 'strong', 'em', 'u', 's', 'span',
+      'p',
+      'br',
+      'strong',
+      'em',
+      'u',
+      's',
+      'span',
       // Headings for structure
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
       // Lists for features and benefits
-      'ul', 'ol', 'li',
+      'ul',
+      'ol',
+      'li',
       // Professional formatting
-      'blockquote', 'div',
+      'blockquote',
+      'div',
       // Links for company websites
       'a',
       // Code and pre for technical specifications
-      'code', 'pre',
+      'code',
+      'pre',
       // Tables for financial data
-      'table', 'thead', 'tbody', 'tr', 'th', 'td'
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'th',
+      'td',
     ],
     ALLOWED_ATTR: ['href', 'target'],
     ALLOW_DATA_ATTR: false,
@@ -36,29 +56,28 @@ export function RichTextDisplay({ content, className, compact = false }: RichTex
 
   // Compact mode for card previews - Stripe-inspired minimalism
   if (compact) {
+    const compactContent = sanitizedContent.replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
     return (
-      <div 
+      <div
         className={cn(
-          "text-[14px] leading-[1.65] text-slate-700 tracking-[-0.003em]",
-          "[&_p]:m-0 [&_p]:inline",
-          "[&_ul]:m-0 [&_ul]:inline [&_li]:m-0 [&_li]:inline [&_li]:before:content-none",
-          "[&_ol]:m-0 [&_ol]:inline",
-          "[&_strong]:font-semibold [&_em]:italic",
-          "[&_*]:text-[14px] [&_*]:leading-[1.65]",
-          className
+          'text-[14px] leading-[1.65] text-slate-700 tracking-[-0.003em]',
+          '[&_p]:m-0 [&_p]:inline',
+          '[&_ul]:m-0 [&_ul]:inline [&_li]:m-0 [&_li]:inline [&_li]:before:content-none',
+          '[&_ol]:m-0 [&_ol]:inline',
+          '[&_strong]:font-semibold [&_em]:italic',
+          '[&_*]:text-[14px] [&_*]:leading-[1.65]',
+          '[&_h1]:hidden [&_h2]:hidden [&_h3]:hidden [&_h4]:hidden [&_h5]:hidden [&_h6]:hidden',
+          className,
         )}
-        dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+        dangerouslySetInnerHTML={{ __html: compactContent }}
       />
     );
   }
 
   // Regular mode for detail pages - uses enhanced prose classes from index.css
   return (
-    <div 
-      className={cn(
-        "prose max-w-none",
-        className
-      )}
+    <div
+      className={cn('prose max-w-none', className)}
       dangerouslySetInnerHTML={{ __html: sanitizedContent }}
     />
   );

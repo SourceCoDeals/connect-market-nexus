@@ -42,8 +42,7 @@ export const OwnerGoalsCard = ({
       setIsEditOpen(false);
       toast.success('Owner goals updated');
     } catch (error) {
-      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
-      toast.error(`Failed to save: ${message}`);
+      toast.error('Failed to save');
     } finally {
       setIsSaving(false);
     }

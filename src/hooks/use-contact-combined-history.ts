@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase, untypedFrom } from '@/integrations/supabase/client';
+import { untypedFrom } from '@/integrations/supabase/client';
 
 /**
  * Unified activity entry combining SmartLead emails, PhoneBurner calls,
@@ -86,7 +86,7 @@ const MEETING_EVENT_LABELS: Record<string, string> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TimelineRow = Record<string, any>;
 
-export function mapRowToEntry(row: TimelineRow): UnifiedActivityEntry {
+function mapRowToEntry(row: TimelineRow): UnifiedActivityEntry {
   const channel = (row.channel || 'call') as UnifiedActivityEntry['channel'];
   const eventType = (row.event_type || '').toUpperCase();
   const meta = row.metadata || {};
@@ -222,50 +222,6 @@ export function useContactCombinedHistoryByEmail(email: string | null) {
       return (data || []).map(mapRowToEntry);
     },
     enabled: !!email,
-    staleTime: 60_000,
-  });
-}
-
-/**
- * Fetches combined history across an entire firm by email domain.
- *
- * Calls the `get_firm_activity` RPC, which returns unified_contact_timeline
- * rows matching EITHER the given buyer id OR any contact_email whose domain
- * is in the `domains` list (typically sourced from firm_domain_aliases for
- * the buyer's firm). This is the primary data path for the domain-aware
- * ContactHistoryTracker — surfacing activity with anyone at the firm, not
- * just the single contact linked to the buyer record.
- */
-export function useContactCombinedHistoryByDomain({
-  buyerId,
-  domains,
-}: {
-  buyerId: string | null;
-  domains: string[] | null;
-}) {
-  const normalizedDomains = (domains ?? [])
-    .map((d) => d?.trim().toLowerCase())
-    .filter((d): d is string => !!d && d.length > 0);
-  const hasDomains = normalizedDomains.length > 0;
-  const enabled = !!buyerId || hasDomains;
-
-  return useQuery<UnifiedActivityEntry[]>({
-    queryKey: ['contact-combined-history-domain', buyerId, normalizedDomains],
-    queryFn: async () => {
-      if (!enabled) return [];
-      const { data, error } = await supabase.rpc('get_firm_activity', {
-        p_buyer_id: buyerId,
-        p_domains: normalizedDomains,
-      });
-
-      if (error) {
-        console.warn('[useContactCombinedHistoryByDomain] rpc error:', error.message);
-        return [];
-      }
-
-      return (data || []).map(mapRowToEntry);
-    },
-    enabled,
     staleTime: 60_000,
   });
 }

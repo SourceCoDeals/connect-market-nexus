@@ -77,8 +77,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
     service_weight: number;
     owner_goals_weight: number;
   }) => {
-    setFormData((prev) => ({
-      ...prev,
+    setFormData({
       name: templateConfig.name,
       description: templateConfig.description,
       fit_criteria: templateConfig.fit_criteria,
@@ -86,7 +85,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
       size_weight: templateConfig.size_weight,
       service_weight: templateConfig.service_weight,
       owner_goals_weight: templateConfig.owner_goals_weight,
-    }));
+    });
     setSizeCriteria(templateConfig.size_criteria);
     setGeographyCriteria(templateConfig.geography_criteria);
     setServiceCriteria(templateConfig.service_criteria);
@@ -239,7 +238,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
         await syncBuyerFromMarketplace(supabase, buyerId, firmId);
 
         // Sign the fee agreement on the marketplace side (uses existing cascading function)
-        await supabase.rpc('update_fee_agreement_firm_status', {
+        await (supabase as any).rpc('update_fee_agreement_firm_status', {
           p_firm_id: firmId,
           p_is_signed: true,
           p_signed_by_user_id: undefined,

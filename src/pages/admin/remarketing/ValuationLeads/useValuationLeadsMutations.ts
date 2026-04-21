@@ -3,7 +3,7 @@
  * score, assign, and other action handlers.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import type { ValuationLead } from './types';
 import { inferWebsite, buildListingFromLead } from './helpers';
+import { findValuationLeadContactsBulk } from '@/lib/remarketing/findValuationLeadContacts';
 
 interface MutationDeps {
   leads: ValuationLead[] | undefined;
@@ -49,11 +50,25 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
   const [isScoring, setIsScoring] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
   const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
+  const [isFindingContacts, setIsFindingContacts] = useState(false);
   const [isDeleting, _setIsDeleting] = useState(false);
+  // Timestamp (ms) until which we should poll the leads query for async Clay results.
+  // Set when handleFindContacts queues anything async. Read by useValuationLeadsQueries
+  // to enable a temporary 20s refetch interval. Auto-expires after 5 minutes.
+  const [contactPollingUntil, setContactPollingUntil] = useState<number | null>(null);
 
   // Drawer state
   const [selectedLead, setSelectedLead] = useState<ValuationLead | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Keep selectedLead in sync with refreshed leads list (e.g. after enrichment)
+  useEffect(() => {
+    if (!selectedLead?.id || !leads) return;
+    const fresh = leads.find((l) => l.id === selectedLead.id);
+    if (fresh && fresh !== selectedLead) {
+      setSelectedLead(fresh);
+    }
+  }, [leads, selectedLead]);
 
   /** Open the detail drawer on row click (non-destructive) */
   const handleRowClick = useCallback((lead: ValuationLead) => {
@@ -733,6 +748,95 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
     [queryClient],
   );
 
+  /**
+   * Backfill phone + LinkedIn for one or more leads via the
+   * find-valuation-lead-contacts edge function (Serper → Blitz → Clay waterfall).
+   * Skips leads that already have both fields populated.
+   */
+  const handleFindContacts = useCallback(
+    async (leadIds: string[]) => {
+      if (leadIds.length === 0 || isFindingContacts) return;
+
+      // Filter to leads that are actually missing something
+      const allLeads = leads || [];
+      const targets = allLeads.filter(
+        (l) => leadIds.includes(l.id) && (!l.linkedin_url || !l.phone) && l.full_name && l.email,
+      );
+
+      if (targets.length === 0) {
+        sonnerToast.info('Selected leads already have phone & LinkedIn — nothing to find');
+        return;
+      }
+
+      setIsFindingContacts(true);
+      const targetIds = targets.map((l) => l.id);
+
+      let activityItem: { id: string } | null = null;
+      try {
+        const result = await startOrQueueMajorOp({
+          operationType: 'deal_enrichment',
+          totalItems: targets.length,
+          description: `Finding phone & LinkedIn for ${targets.length} lead${targets.length !== 1 ? 's' : ''}`,
+          userId: user?.id || '',
+          contextJson: { source: 'valuation_leads_find_contacts' },
+        });
+        activityItem = result.item;
+      } catch {
+        /* Non-blocking */
+      }
+
+      const promise = findValuationLeadContactsBulk(targetIds, {
+        concurrency: 3,
+        onProgress: (done) => {
+          if (activityItem) {
+            updateProgress.mutate({ id: activityItem.id, completedItems: done });
+          }
+        },
+      });
+
+      sonnerToast.promise(promise, {
+        loading: `Searching Serper + Blitz for ${targets.length} lead${targets.length !== 1 ? 's' : ''}…`,
+        success: (r) => {
+          const parts: string[] = [];
+          if (r.found) parts.push(`${r.found} found now`);
+          if (r.queued) parts.push(`${r.queued} searching async`);
+          if (r.cached) parts.push(`${r.cached} cached`);
+          if (r.skipped) parts.push(`${r.skipped} skipped`);
+          if (r.errors) parts.push(`${r.errors} errors`);
+          return `Contact search complete — ${parts.join(', ') || 'no changes'}`;
+        },
+        error: 'Contact search failed',
+      });
+
+      try {
+        const result = await promise;
+        // If anything was queued for async Clay return, poll for 5 minutes
+        // so the icons appear without the user manually refreshing.
+        if (result.queued > 0) {
+          setContactPollingUntil(Date.now() + 5 * 60 * 1000);
+        }
+      } finally {
+        if (activityItem) {
+          completeOperation.mutate({ id: activityItem.id, finalStatus: 'completed' });
+        }
+        setIsFindingContacts(false);
+        setSelectedIds(new Set());
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
+      }
+    },
+
+    [
+      leads,
+      isFindingContacts,
+      user?.id,
+      startOrQueueMajorOp,
+      completeOperation,
+      updateProgress,
+      queryClient,
+      setSelectedIds,
+    ],
+  );
+
   return {
     // Actions
     handleRowClick,
@@ -748,6 +852,7 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
     handleAssignOwner,
     handleEnrichSelected,
     handleDelete,
+    handleFindContacts,
     // Drawer state
     selectedLead,
     setSelectedLead,
@@ -760,6 +865,10 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
     isScoring,
     isEnriching,
     isMarkingNotFit,
+    isFindingContacts,
     isDeleting,
+    // Polling window for async Clay results (consumed by useValuationLeadsQueries)
+    contactPollingUntil,
+    setContactPollingUntil,
   };
 }

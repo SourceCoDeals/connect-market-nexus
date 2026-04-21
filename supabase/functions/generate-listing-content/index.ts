@@ -22,6 +22,7 @@ import {
 } from '../_shared/ai-providers.ts';
 import { logAICallCost } from '../_shared/cost-tracker.ts';
 import { sanitizeAnonymityBreaches, STATE_NAMES, STATE_ABBREVS } from '../_shared/anonymization.ts';
+import { extractFinancialsFromMemo, syncFinancialsToListings } from '../_shared/memo-financials.ts';
 
 // ─── Helpers ───
 
@@ -565,12 +566,16 @@ async function callAIAndRespond(
   const revSubtitle = primaryCategory || undefined;
   const ebitdaSubtitle = marginStr || undefined;
 
-  // Metric 3: pick best available data (custom only — employees metric is deprecated)
+  // Metric 3: pick best available data
   let metric3: Record<string, unknown> = {};
+  const ftEmployees = (deal.full_time_employees || 0) as number;
+  const ptEmployees = (deal.part_time_employees || 0) as number;
   const numLocations = (deal.number_of_locations || 0) as number;
   const foundedYear = (deal.founded_year || 0) as number;
 
-  if (numLocations > 0) {
+  if (ftEmployees + ptEmployees > 0) {
+    metric3 = { metric_3_type: 'employees' };
+  } else if (numLocations > 0) {
     metric3 = {
       metric_3_type: 'custom',
       metric_3_custom_label: 'Locations',
@@ -622,6 +627,27 @@ async function callAIAndRespond(
     if (updateError) {
       console.error('[generate-listing-content] Failed to update listing:', updateError);
     }
+  }
+
+  // ── Sync structured financials from memo content ──
+  // Fetch latest full memo for this deal to extract authoritative financials
+  try {
+    const { data: latestMemo } = await supabaseAdmin
+      .from('lead_memos')
+      .select('content')
+      .eq('deal_id', dealId)
+      .eq('memo_type', 'full_memo')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const extracted = extractFinancialsFromMemo(deal, latestMemo?.content ?? null);
+    if (extracted.revenue || extracted.ebitda) {
+      await syncFinancialsToListings(supabaseAdmin, dealId, extracted);
+      console.log(`[generate-listing-content] Financial sync for deal ${dealId}:`, extracted);
+    }
+  } catch (syncErr) {
+    console.error('[generate-listing-content] Financial sync failed (non-blocking):', syncErr);
   }
 
   return new Response(

@@ -99,16 +99,16 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < contentHashInput.length; i++) {
       contentHash = ((contentHash << 5) - contentHash + contentHashInput.charCodeAt(i)) | 0;
     }
-    const contentHashStr = String(contentHash);
+    const _contentHashStr = String(contentHash);
 
     // ── Check cache (Issue #40: also verify universe context matches + content hash) ──
     if (!forceRefresh && !lookupBuyerId) {
-      // content_hash column was added in migration 20260726000000. Rows written
-      // before the edge function started populating it will have NULL — those
-      // fall back to TTL-only behaviour (don't match, so we re-score).
+      // Select known columns only; content_hash may not exist yet (requires migration).
+      // If the column exists, it'll be in the result; if not, the query still works
+      // with just the known columns and we skip hash-based invalidation.
       const { data: cached } = await supabase
         .from('buyer_recommendation_cache')
-        .select('results, buyer_count, scored_at, universe_ids, content_hash')
+        .select('results, buyer_count, scored_at, universe_ids')
         .eq('listing_id', listingId)
         .gt('expires_at', new Date().toISOString())
         .maybeSingle();
@@ -124,8 +124,7 @@ Deno.serve(async (req: Request) => {
 
       if (
         cached &&
-        JSON.stringify((cached.universe_ids || []).slice().sort()) === currentUniverseKey &&
-        cached.content_hash === contentHashStr
+        JSON.stringify((cached.universe_ids || []).slice().sort()) === currentUniverseKey
       ) {
         return new Response(
           JSON.stringify({
@@ -778,9 +777,10 @@ Deno.serve(async (req: Request) => {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + CACHE_HOURS * 60 * 60 * 1000);
 
-    // content_hash lets the cache invalidate when scoring-relevant deal fields
-    // change, instead of waiting up to CACHE_HOURS for TTL expiry. Migration
-    // 20260726000000 added the column.
+    // Note: content_hash is computed above but not written to the cache table yet.
+    // A future migration should add a content_hash TEXT column to buyer_recommendation_cache,
+    // then uncomment content_hash in the upsert and add it to the cache SELECT above
+    // for stale-on-edit invalidation.
     const { error: cacheError } = await supabase.from('buyer_recommendation_cache').upsert(
       {
         listing_id: listingId,
@@ -790,7 +790,7 @@ Deno.serve(async (req: Request) => {
         results: topBuyers,
         score_version: 'v4',
         universe_ids: universeIds,
-        content_hash: contentHashStr,
+        // content_hash: contentHashStr, // Uncomment after migration adds this column
       },
       { onConflict: 'listing_id' },
     );

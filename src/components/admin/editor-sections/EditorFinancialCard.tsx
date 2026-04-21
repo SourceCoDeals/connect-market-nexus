@@ -6,6 +6,7 @@ import { EDITOR_DESIGN } from '@/lib/editor-design-system';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { NumericInput } from '@/components/ui/numeric-input';
 
 interface EditorFinancialCardProps {
   form: UseFormReturn<any>;
@@ -23,6 +24,7 @@ export function EditorFinancialCard({
   const ebitda = form.watch('ebitda') || 0;
   const calculatedMargin = revenue > 0 ? ((ebitda / revenue) * 100).toFixed(1) : '0.0';
 
+  const metric3Type = form.watch('metric_3_type') || 'employees';
   const metric4Type = form.watch('metric_4_type') || 'ebitda_margin';
 
   return (
@@ -163,38 +165,87 @@ export function EditorFinancialCard({
             <div className={cn(EDITOR_DESIGN.microLabel, 'mb-2')}>Display Metrics (3 &amp; 4)</div>
           </div>
 
-          {/* Metric 3 — optional custom metric (e.g. Locations, Years Established) */}
+          {/* Metric 3 */}
           <div className={EDITOR_DESIGN.compactFieldSpacing}>
             <div className="flex items-center gap-2 mb-1">
-              <div className={cn(EDITOR_DESIGN.microLabel, 'mb-0')}>Metric 3 (optional)</div>
+              <div className={cn(EDITOR_DESIGN.microLabel, 'mb-0')}>Metric 3</div>
+              <div className="flex rounded border border-border/60 overflow-hidden text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => form.setValue('metric_3_type', 'employees')}
+                  className={cn(
+                    'px-2 py-0.5 transition-colors',
+                    metric3Type !== 'custom'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-muted/50',
+                  )}
+                >
+                  Team Size
+                </button>
+                <button
+                  type="button"
+                  onClick={() => form.setValue('metric_3_type', 'custom')}
+                  className={cn(
+                    'px-2 py-0.5 transition-colors',
+                    metric3Type === 'custom'
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-muted/50',
+                  )}
+                >
+                  Custom
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <input
-                placeholder="Label (e.g. Locations)"
-                {...form.register('metric_3_custom_label')}
-                className={cn(
-                  EDITOR_DESIGN.compactHeight,
-                  'w-full text-sm bg-background border border-border/60 rounded px-2 placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/30',
-                )}
-              />
-              <input
-                placeholder="Value (e.g. 12)"
-                {...form.register('metric_3_custom_value')}
-                className={cn(
-                  EDITOR_DESIGN.compactHeight,
-                  'w-full text-sm bg-background border border-border/60 rounded px-2 placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/30',
-                )}
-              />
-              <input
-                placeholder="Subtitle (optional)"
-                {...form.register('metric_3_custom_subtitle')}
-                className={cn(
-                  EDITOR_DESIGN.microHeight,
-                  'w-full text-xs bg-transparent border-0 border-b border-dashed border-border/70 px-0 placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary/50',
-                )}
-              />
-            </div>
+            {metric3Type !== 'custom' ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-[10px] text-muted-foreground mb-0.5">Full-time</div>
+                  <NumericInput
+                    value={form.watch('full_time_employees') || ''}
+                    onChange={(v) => form.setValue('full_time_employees', v ? parseInt(v) : null)}
+                    placeholder="0"
+                    className={cn(EDITOR_DESIGN.compactHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
+                  />
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted-foreground mb-0.5">Part-time</div>
+                  <NumericInput
+                    value={form.watch('part_time_employees') || ''}
+                    onChange={(v) => form.setValue('part_time_employees', v ? parseInt(v) : null)}
+                    placeholder="0"
+                    className={cn(EDITOR_DESIGN.compactHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <input
+                  placeholder="Label (e.g. Locations)"
+                  {...form.register('metric_3_custom_label')}
+                  className={cn(
+                    EDITOR_DESIGN.compactHeight,
+                    'w-full text-sm bg-background border border-border/60 rounded px-2 placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/30',
+                  )}
+                />
+                <input
+                  placeholder="Value (e.g. 12)"
+                  {...form.register('metric_3_custom_value')}
+                  className={cn(
+                    EDITOR_DESIGN.compactHeight,
+                    'w-full text-sm bg-background border border-border/60 rounded px-2 placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/30',
+                  )}
+                />
+                <input
+                  placeholder="Subtitle (optional)"
+                  {...form.register('metric_3_custom_subtitle')}
+                  className={cn(
+                    EDITOR_DESIGN.microHeight,
+                    'w-full text-xs bg-transparent border-0 border-b border-dashed border-border/70 px-0 placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary/50',
+                  )}
+                />
+              </div>
+            )}
           </div>
 
           {/* Metric 4 */}

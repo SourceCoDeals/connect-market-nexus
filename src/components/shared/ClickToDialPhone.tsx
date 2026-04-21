@@ -10,6 +10,10 @@ interface ClickToDialPhoneProps {
   company?: string;
   entityType?: 'buyer_contacts' | 'contacts' | 'buyers' | 'listings' | 'leads' | 'contact_list';
   entityId?: string;
+  /** Optional valuation lead UUID — used for round-trip attribution via PB custom fields */
+  valuationLeadId?: string;
+  /** Optional listing UUID — used for round-trip attribution via PB custom fields */
+  listingId?: string;
   /** Display label — defaults to the phone number */
   label?: string;
   /** If true, show only an icon button */
@@ -29,6 +33,8 @@ export function ClickToDialPhone({
   company,
   entityType,
   entityId,
+  valuationLeadId,
+  listingId,
   label,
   iconOnly = false,
   className,
@@ -57,9 +63,23 @@ export function ClickToDialPhone({
   const dialerEntityType = entityType || 'contacts';
   const contactIds = entityId ? [entityId] : [];
 
-  // When no entityId, pass contact details inline so the edge function
-  // can create a PhoneBurner session without a DB lookup
-  const inlineContacts = !entityId ? [{ phone, name, email, company }] : undefined;
+  // ALWAYS pass inline contact details so the edge function can dial
+  // immediately without depending on per-table resolvers (which break for
+  // sources like valuation_leads). The edge function prefers inline_contacts
+  // when present and skips the DB lookup entirely.
+  // Forward valuation_lead_id / listing_id so the push function can stamp
+  // them as PhoneBurner custom fields — the webhook reads them back to
+  // attribute the call to the correct lead/listing.
+  const inlineContacts = [
+    {
+      phone,
+      name,
+      email,
+      company,
+      valuation_lead_id: valuationLeadId,
+      listing_id: listingId,
+    },
+  ];
 
   return (
     <>

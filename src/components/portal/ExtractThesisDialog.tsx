@@ -12,8 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, Loader2, RefreshCw, Sparkles, FileText } from 'lucide-react';
+import { AlertCircle, Loader2, Sparkles, FileText } from 'lucide-react';
 import {
   useExtractPortalThesis,
   useSaveExtractedTheses,
@@ -167,31 +168,6 @@ export function ExtractThesisDialog({
     setCandidates((prev) => prev.map((c) => (c._key === key ? { ...c, ...patch } : c)));
   };
 
-  const handleReextract = async () => {
-    if (!doc) return;
-    setCandidates([]);
-    setExtractionNotes(null);
-    setOverallConfidence(null);
-    setHasRun(false);
-    lastExtractedDocId.current = null;
-    try {
-      const res = await extractMutation.mutateAsync(doc.id);
-      setCandidates(
-        res.theses.map((t, i) => ({
-          ...t,
-          _key: `thesis-${i}-${Date.now()}`,
-          _selected: t.confidence >= 60,
-        })),
-      );
-      setExtractionNotes(res.extraction_notes);
-      setOverallConfidence(res.overall_confidence);
-      setHasRun(true);
-      lastExtractedDocId.current = doc.id;
-    } catch {
-      setHasRun(true);
-    }
-  };
-
   const handleSave = async () => {
     const selected = candidates.filter((c) => c._selected);
     if (selected.length === 0) return;
@@ -228,7 +204,7 @@ export function ExtractThesisDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -245,7 +221,7 @@ export function ExtractThesisDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0">
           {isExtracting && (
             <div
               className="flex flex-col items-center justify-center py-16 text-center"
@@ -288,37 +264,25 @@ export function ExtractThesisDialog({
           )}
 
           {!isExtracting && candidates.length > 0 && (
-            <div className="flex-1 min-h-0 flex flex-col gap-3">
+            <div className="space-y-3 h-full flex flex-col">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>
                   Found <strong>{candidates.length}</strong> thesis{' '}
                   {candidates.length === 1 ? 'row' : 'rows'}
                   {overallConfidence != null && <> · overall confidence {overallConfidence}%</>}
                 </span>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    className="text-primary hover:underline flex items-center gap-1"
-                    onClick={handleReextract}
-                    disabled={isExtracting}
-                    title="Run the AI extraction again on this document"
-                  >
-                    <RefreshCw className={`h-3 w-3 ${isExtracting ? 'animate-spin' : ''}`} />
-                    Re-extract
-                  </button>
-                  <button
-                    type="button"
-                    className="text-primary hover:underline"
-                    onClick={() =>
-                      setCandidates((prev) => {
-                        const allSelected = prev.every((x) => x._selected);
-                        return prev.map((c) => ({ ...c, _selected: !allSelected }));
-                      })
-                    }
-                  >
-                    {candidates.every((c) => c._selected) ? 'Deselect all' : 'Select all'}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() =>
+                    setCandidates((prev) => {
+                      const allSelected = prev.every((x) => x._selected);
+                      return prev.map((c) => ({ ...c, _selected: !allSelected }));
+                    })
+                  }
+                >
+                  {candidates.every((c) => c._selected) ? 'Deselect all' : 'Select all'}
+                </button>
               </div>
 
               {extractionNotes && (
@@ -327,7 +291,7 @@ export function ExtractThesisDialog({
                 </div>
               )}
 
-              <div className="flex-1 min-h-0 overflow-y-auto pr-3">
+              <ScrollArea className="flex-1 pr-3">
                 <div className="space-y-3">
                   {candidates.map((c) => {
                     const rowError = validationErrors.get(c._key);
@@ -523,7 +487,7 @@ export function ExtractThesisDialog({
                     );
                   })}
                 </div>
-              </div>
+              </ScrollArea>
             </div>
           )}
         </div>

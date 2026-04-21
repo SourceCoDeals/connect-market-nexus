@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useSearchParams } from 'react-router-dom';
-import { useSearchParamState } from '@/hooks/use-search-param-state';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAdmin } from '@/hooks/use-admin';
 import { AdminConnectionRequest } from '@/types/admin';
@@ -25,6 +26,7 @@ import { EmailTestButton } from '@/components/admin/EmailTestButton';
 import { ListingFilterSelect } from '@/components/admin/ListingFilterSelect';
 import { RequestsGridView } from '@/components/admin/RequestsGridView';
 import { ViewSwitcher } from '@/components/admin/ViewSwitcher';
+import { ManualLeadIngestion } from '@/components/admin/ManualLeadIngestion';
 import { supabase } from '@/integrations/supabase/client';
 import { useMarkConnectionRequestsViewed } from '@/hooks/admin/use-mark-connection-requests-viewed';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
@@ -46,9 +48,36 @@ const AdminRequests = () => {
 
   // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
-  // Search input uses local state + debounced URL sync so typing doesn't fire
-  // a router navigation on every keystroke.
-  const [searchQuery, setSearchQuery] = useSearchParamState('q');
+  const searchQuery = searchParams.get('q') ?? '';
+  const setSearchQuery = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('q', v);
+          else n.delete('q');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  // Local input state decoupled from URL to prevent keystroke drops
+  const [searchInputValue, setSearchInputValue] = useState(searchQuery);
+
+  // Debounce: sync local input → URL params after 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(searchInputValue), 300);
+    return () => clearTimeout(timer);
+  }, [searchInputValue, setSearchQuery]);
+
+  // Sync URL → local input on external navigation (back/forward)
+  useEffect(() => {
+    const urlQ = searchParams.get('q') ?? '';
+    setSearchInputValue((prev) => (prev !== urlQ ? urlQ : prev));
+  }, [searchParams]);
   const selectedListingId = searchParams.get('listing') ?? null;
   const setSelectedListingId = useCallback(
     (v: string | null) => {
@@ -82,6 +111,7 @@ const AdminRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isManualIngestionOpen, setIsManualIngestionOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedUserForApprovalEmail, setSelectedUserForApprovalEmail] = useState<any>(null);
   const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
@@ -108,6 +138,8 @@ const AdminRequests = () => {
         setNdaFilter('all');
         setFeeAgreementFilter('all');
         setDateRangeFilter('all');
+        setSourceFilter('all');
+        setSearchInputValue('');
         setSearchQuery('');
       }
       filters.forEach((f) => {
@@ -128,6 +160,7 @@ const AdminRequests = () => {
             break;
           case 'search':
           case 'query':
+            setSearchInputValue(f.value as string);
             setSearchQuery(f.value as string);
             break;
         }
@@ -149,6 +182,8 @@ const AdminRequests = () => {
       setNdaFilter('all');
       setFeeAgreementFilter('all');
       setDateRangeFilter('all');
+      setSourceFilter('all');
+      setSearchInputValue('');
       setSearchQuery('');
     },
   });
@@ -182,6 +217,7 @@ const AdminRequests = () => {
     ndaFilter,
     feeAgreementFilter,
     dateRangeFilter,
+    sourceFilter,
     sortOption,
     filteredAndSortedRequests: pipelineFilteredRequests,
     setStatusFilter,
@@ -189,6 +225,7 @@ const AdminRequests = () => {
     setNdaFilter,
     setFeeAgreementFilter,
     setDateRangeFilter,
+    setSourceFilter,
     setSortOption,
   } = usePipelineFilters(requests);
 
@@ -338,11 +375,23 @@ const AdminRequests = () => {
     <AdminRequestsWrapper>
       <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col gap-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Request Management</h1>
-            <p className="text-sm md:text-base text-muted-foreground">
-              Manage buyer connection requests
-            </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">Request Management</h1>
+              <p className="text-sm md:text-base text-muted-foreground">
+                Manage buyer connection requests
+                {requests.length > 0 && filteredRequests.length < requests.length && (
+                  <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
+                    · Showing {filteredRequests.length} of {requests.length} (
+                    {requests.length - filteredRequests.length} hidden by filters)
+                  </span>
+                )}
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setIsManualIngestionOpen(true)}>
+              <Upload className="h-4 w-4 mr-1" />
+              Add Lead
+            </Button>
           </div>
         </div>
 
@@ -356,15 +405,17 @@ const AdminRequests = () => {
             ndaFilter={ndaFilter}
             feeAgreementFilter={feeAgreementFilter}
             dateRangeFilter={dateRangeFilter}
+            sourceFilter={sourceFilter}
             sortOption={sortOption}
-            searchQuery={searchQuery}
+            searchQuery={searchInputValue}
             onStatusFilterChange={setStatusFilter}
             onBuyerTypeFilterChange={(filter) => setBuyerTypeFilter(filter)}
             onNdaFilterChange={setNdaFilter}
             onFeeAgreementFilterChange={setFeeAgreementFilter}
             onDateRangeFilterChange={setDateRangeFilter}
+            onSourceFilterChange={setSourceFilter}
             onSortChange={(sort) => setSortOption(sort)}
-            onSearchChange={setSearchQuery}
+            onSearchChange={setSearchInputValue}
             listingFilter={
               <ListingFilterSelect
                 requests={requests}
@@ -434,6 +485,11 @@ const AdminRequests = () => {
               console.error('Error processing approval:', error);
             }
           }}
+        />
+
+        <ManualLeadIngestion
+          isOpen={isManualIngestionOpen}
+          onClose={() => setIsManualIngestionOpen(false)}
         />
 
         {/* Edge Case Tools */}

@@ -49,7 +49,6 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
-  ListChecks,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -68,7 +67,6 @@ import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { useUniverseData } from './useUniverseData';
 import { useUniverseActions } from './useUniverseActions';
 import { UniverseTab } from './UniverseTab';
-import { EntityTasksTab } from '@/components/daily-tasks/EntityTasksTab';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -332,10 +330,6 @@ const ReMarketingUniverseDetail = () => {
               <Users className="mr-2 h-4 w-4" />
               Universe
             </TabsTrigger>
-            <TabsTrigger value="tasks">
-              <ListChecks className="mr-2 h-4 w-4" />
-              Tasks
-            </TabsTrigger>
             <TabsTrigger value="configuration">
               <Settings className="mr-2 h-4 w-4" />
               Configuration & Research
@@ -372,18 +366,7 @@ const ReMarketingUniverseDetail = () => {
             />
           </TabsContent>
 
-          {/* TAB 2: Tasks — assigned to this buyer universe */}
-          <TabsContent value="tasks" className="space-y-4">
-            {id && (
-              <EntityTasksTab
-                entityType="buyer_universe"
-                entityId={id}
-                entityName={formData.name}
-              />
-            )}
-          </TabsContent>
-
-          {/* TAB 3: Configuration & Research */}
+          {/* TAB 2: Configuration & Research */}
           <TabsContent value="configuration" className="space-y-6">
             {/* AI Research & M&A Guide - Primary section */}
             {id && (

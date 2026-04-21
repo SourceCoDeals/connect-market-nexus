@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -16,10 +16,18 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Phone, Loader2, AlertCircle, CheckCircle2, Users, AlertTriangle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2, ExternalLink, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import phoneburnerLogo from '@/assets/phoneburner-logo.svg';
 
 type DialerEntityType =
   | 'contacts'
@@ -34,6 +42,10 @@ interface InlineContact {
   name?: string;
   email?: string;
   company?: string;
+  /** Optional attribution fields — round-trip via PhoneBurner custom fields */
+  valuation_lead_id?: string;
+  listing_id?: string;
+  contact_id?: string;
 }
 
 interface PushToDialerModalProps {
@@ -56,6 +68,28 @@ interface PushResult {
   redirect_url?: string;
 }
 
+function getInitials(label: string | null | undefined): string {
+  if (!label) return '··';
+  const cleaned = label.trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return cleaned.slice(0, 2).toUpperCase();
+}
+
+function PhoneBurnerMark({ className }: { className?: string }) {
+  return (
+    <img
+      src={phoneburnerLogo}
+      alt=""
+      aria-hidden
+      className={cn('select-none', className)}
+      draggable={false}
+    />
+  );
+}
+
 export function PushToDialerModal({
   open,
   onOpenChange,
@@ -64,20 +98,34 @@ export function PushToDialerModal({
   entityType = 'contacts',
   inlineContacts,
 }: PushToDialerModalProps) {
-  const [sessionName, setSessionName] = useState(
-    `Buyer Outreach - ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
-  );
+  const isQuickDial = contactCount === 1 && (inlineContacts?.length ?? 0) > 0;
+  const quickContact = isQuickDial ? inlineContacts![0] : undefined;
+
+  const defaultSessionName = isQuickDial
+    ? `Quick dial — ${quickContact?.name || quickContact?.phone || 'contact'}`
+    : `Buyer Outreach — ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+
+  const [sessionName, setSessionName] = useState(defaultSessionName);
   const [skipRecentDays] = useState(7);
   const [skipRecent, setSkipRecent] = useState(true);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [quickAccount, setQuickAccount] = useState<string>('self'); // 'self' = caller's own PB account
   const [result, setResult] = useState<PushResult | null>(null);
   const [multiResults, setMultiResults] = useState<
     Array<{ user: PhoneBurnerConnectedUser; result: PushResult }>
   >([]);
+  const [inlineError, setInlineError] = useState<string | null>(null);
 
   const { data: connectedUsers = [], isLoading: usersLoading } = usePhoneBurnerConnectedUsers();
+  const validUsers = useMemo(() => connectedUsers.filter((u) => !u.is_expired), [connectedUsers]);
 
-  const validUsers = connectedUsers.filter((u) => !u.is_expired);
+  // Reset session name when the contact identity changes (different click target)
+  useEffect(() => {
+    if (open) {
+      setSessionName(defaultSessionName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, quickContact?.phone, quickContact?.name]);
 
   const toggleUser = (userId: string) => {
     setSelectedUserIds((prev) =>
@@ -95,7 +143,15 @@ export function PushToDialerModal({
 
   const pushMutation = useMutation({
     mutationFn: async () => {
-      const targetUsers = selectedUserIds.length > 0 ? selectedUserIds : [undefined]; // Push to calling user's own account if none selected
+      setInlineError(null);
+
+      // In quick-dial mode the user picks a single account from the dropdown
+      // (defaulting to their own). In bulk mode we honour the multi-select.
+      const targetUsers: (string | undefined)[] = isQuickDial
+        ? [quickAccount === 'self' ? undefined : quickAccount]
+        : selectedUserIds.length > 0
+          ? selectedUserIds
+          : [undefined];
 
       const results: Array<{
         user: PhoneBurnerConnectedUser | null;
@@ -109,7 +165,7 @@ export function PushToDialerModal({
               entity_type: entityType,
               entity_ids: contactIds,
               session_name: sessionName,
-              skip_recent_days: skipRecent ? skipRecentDays : 0,
+              skip_recent_days: isQuickDial ? 0 : skipRecent ? skipRecentDays : 0,
               ...(inlineContacts && inlineContacts.length > 0
                 ? { inline_contacts: inlineContacts }
                 : {}),
@@ -118,7 +174,6 @@ export function PushToDialerModal({
           });
 
           if (error) {
-            // Try to extract the actual error message from the response context
             let errorMsg = error instanceof Error ? error.message : String(error);
             try {
               if ('context' in error && error.context instanceof Response) {
@@ -162,19 +217,21 @@ export function PushToDialerModal({
     },
     onSuccess: (results) => {
       if (results.length === 1) {
-        // Single user push — show simple result
-        setResult(results[0].result);
-        if (results[0].result.success && results[0].result.contacts_added > 0) {
-          toast.success(`${results[0].result.contacts_added} contacts pushed to PhoneBurner`);
-          // Open PhoneBurner dialer in new tab if redirect URL returned
-          if (results[0].result.redirect_url) {
-            window.open(results[0].result.redirect_url, '_blank');
+        const r = results[0].result;
+        setResult(r);
+        if (r.success && r.contacts_added > 0) {
+          if (r.redirect_url) window.open(r.redirect_url, '_blank');
+          if (isQuickDial) {
+            toast.success('Opening PhoneBurner dialer…');
+            // Auto-close in quick-dial mode — the dialer tab is already open
+            setTimeout(() => handleClose(), 2200);
+          } else {
+            toast.success(`${r.contacts_added} contacts pushed to PhoneBurner`);
           }
-        } else if (results[0].result.error) {
-          toast.error(results[0].result.error);
+        } else if (r.error) {
+          setInlineError(r.error);
         }
       } else {
-        // Multi-user push — show combined results
         const totalAdded = results.reduce((sum, r) => sum + (r.result.contacts_added || 0), 0);
         const totalFailed = results.reduce((sum, r) => sum + (r.result.contacts_failed || 0), 0);
         setMultiResults(
@@ -182,38 +239,22 @@ export function PushToDialerModal({
             (r): r is { user: PhoneBurnerConnectedUser; result: PushResult } => r.user !== null,
           ),
         );
-
         if (totalAdded > 0) {
-          const redirectCount = results.filter((r) => r.result.redirect_url).length;
           toast.success(
             `${totalAdded} contacts pushed across ${results.length} PhoneBurner accounts`,
           );
-          // Auto-open the first rep's dialer (popup blockers prevent opening
-          // multiple tabs programmatically in one gesture). The rest of the
-          // redirect URLs are rendered as per-rep "Open dialer" buttons in
-          // the multi-user results UI below so no rep's session goes missing.
           const firstRedirect = results.find((r) => r.result.redirect_url)?.result.redirect_url;
-          if (firstRedirect) {
-            window.open(firstRedirect, '_blank');
-          }
-          if (redirectCount > 1) {
-            toast.info(
-              `Opened dialer for 1 account. ${redirectCount - 1} more in the results panel — click "Open dialer" for each rep.`,
-            );
-          }
+          if (firstRedirect) window.open(firstRedirect, '_blank');
         }
-        if (totalFailed > 0) {
-          toast.warning(`${totalFailed} contacts failed across accounts`);
-        }
+        if (totalFailed > 0) toast.warning(`${totalFailed} contacts failed across accounts`);
       }
     },
     onError: (error) => {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('PB_NOT_CONNECTED')) {
-        toast.error('PhoneBurner not connected. Connect accounts in PhoneBurner Settings first.');
-      } else {
-        toast.error(`Push failed: ${msg}`);
-      }
+      const friendly = msg.includes('PB_NOT_CONNECTED')
+        ? 'PhoneBurner is not connected for this account. Connect it in PhoneBurner Settings first.'
+        : msg;
+      setInlineError(friendly);
     },
   });
 
@@ -221,246 +262,357 @@ export function PushToDialerModal({
     setResult(null);
     setMultiResults([]);
     setSelectedUserIds([]);
+    setInlineError(null);
     onOpenChange(false);
   };
 
   const hasResults = result !== null || multiResults.length > 0;
 
+  const canSubmit = isQuickDial
+    ? // quick-dial: just needs a session name; account defaults to "self"
+      !pushMutation.isPending && Boolean(sessionName.trim())
+    : !pushMutation.isPending &&
+      Boolean(sessionName.trim()) &&
+      (validUsers.length === 0 || selectedUserIds.length > 0);
+
+  const disabledHint =
+    !isQuickDial && validUsers.length > 0 && selectedUserIds.length === 0
+      ? 'Pick an account to enable'
+      : !sessionName.trim()
+        ? 'Add a session name to enable'
+        : null;
+
+  // Resolved primary phone for quick-dial display
+  const quickPhoneLabel = quickContact?.phone || '';
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5" />
-            Push to PhoneBurner
-          </DialogTitle>
-          <DialogDescription>
-            Push {contactCount} selected contact{contactCount !== 1 ? 's' : ''} to PhoneBurner dial
-            sessions
-          </DialogDescription>
+      <DialogContent className="sm:max-w-[460px] gap-0 p-0 overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-4 space-y-3 text-left">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-orange-50 ring-1 ring-orange-100 flex items-center justify-center shrink-0">
+              <PhoneBurnerMark className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-orange-700/80">
+                PhoneBurner
+              </p>
+              <DialogTitle className="text-[17px] font-semibold leading-tight tracking-tight text-foreground">
+                {isQuickDial ? 'Start dial session' : 'Push to dialer'}
+              </DialogTitle>
+            </div>
+          </div>
+          {!isQuickDial && (
+            <DialogDescription className="text-xs text-muted-foreground">
+              {contactCount} contacts &middot; ~{Math.round(contactCount * 2.5)} min estimated dial
+              time
+            </DialogDescription>
+          )}
         </DialogHeader>
 
         {!hasResults ? (
           <>
-            <div className="space-y-4 py-2">
-              {/* Summary */}
-              <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50">
-                <Badge variant="secondary" className="text-sm">
-                  {contactCount} contacts
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  ~{Math.round(contactCount * 2.5)} min estimated dial time
-                </span>
-              </div>
-
-              {/* Target User Picker */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <Users className="h-4 w-4" />
-                  Push to PhoneBurner Account(s)
-                </Label>
-                {usersLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground p-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading connected accounts...
-                  </div>
-                ) : validUsers.length === 0 ? (
-                  <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 text-sm">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                    <span className="text-amber-800 dark:text-amber-200">
-                      No PhoneBurner accounts connected. Go to{' '}
-                      <a href="/admin/phoneburner/settings" className="underline font-medium">
-                        PhoneBurner Settings
-                      </a>{' '}
-                      to connect accounts.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {validUsers.length > 1 && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <Checkbox
-                          id="select-all-users"
-                          checked={selectedUserIds.length === validUsers.length}
-                          onCheckedChange={selectAllUsers}
-                        />
-                        <Label
-                          htmlFor="select-all-users"
-                          className="text-xs text-muted-foreground cursor-pointer"
-                        >
-                          Select all ({validUsers.length} accounts)
-                        </Label>
-                      </div>
-                    )}
-                    <div className="max-h-40 overflow-y-auto space-y-1 border rounded-md p-2">
-                      {validUsers.map((user) => (
-                        <div
-                          key={user.user_id}
-                          className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted/50"
-                        >
-                          <Checkbox
-                            id={`pb-user-${user.user_id}`}
-                            checked={selectedUserIds.includes(user.user_id)}
-                            onCheckedChange={() => toggleUser(user.user_id)}
-                          />
-                          <Label
-                            htmlFor={`pb-user-${user.user_id}`}
-                            className="flex-1 cursor-pointer"
-                          >
-                            <span className="text-sm font-medium">{user.label}</span>
-                            {user.phoneburner_user_email && (
-                              <span className="text-xs text-muted-foreground ml-1.5">
-                                ({user.phoneburner_user_email})
-                              </span>
-                            )}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                    {selectedUserIds.length === 0 && validUsers.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Select which PhoneBurner account(s) to push contacts to. Select multiple to
-                        push the same contacts to several reps.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Session Name */}
-              <div className="space-y-2">
-                <Label htmlFor="session-name">Session Name</Label>
-                <Input
-                  id="session-name"
-                  value={sessionName}
-                  onChange={(e) => setSessionName(e.target.value)}
-                  placeholder="e.g., PE Buyers - Feb 2026"
-                />
-              </div>
-
-              {/* Skip Recent */}
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  id="skip-recent"
-                  checked={skipRecent}
-                  onCheckedChange={(v) => setSkipRecent(v === true)}
-                />
-                <div className="space-y-1">
-                  <Label htmlFor="skip-recent" className="cursor-pointer">
-                    Skip recently contacted
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Exclude contacts called within the last {skipRecentDays} days
+            <div className="px-6 pb-2 space-y-5">
+              {/* Quick-dial: contact identity card */}
+              {isQuickDial && quickContact && (
+                <div className="rounded-lg border border-border/70 bg-card px-4 py-3">
+                  <p className="text-[10px] font-medium tracking-wider uppercase text-muted-foreground">
+                    Calling
                   </p>
+                  <p className="mt-1 text-sm font-medium text-foreground truncate">
+                    {quickContact.name || 'Unnamed contact'}
+                  </p>
+                  <p className="font-mono text-sm text-muted-foreground tracking-tight">
+                    {quickPhoneLabel}
+                  </p>
+                  {quickContact.company && (
+                    <p className="text-xs text-muted-foreground/80 mt-0.5 truncate">
+                      {quickContact.company}
+                    </p>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {/* Account picker — quick-dial = compact dropdown */}
+              {isQuickDial ? (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">
+                    From account
+                  </p>
+                  {usersLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-1">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading accounts…
+                    </div>
+                  ) : (
+                    <Select value={quickAccount} onValueChange={setQuickAccount}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Choose account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="self">My PhoneBurner account</SelectItem>
+                        {validUsers.map((user) => (
+                          <SelectItem key={user.user_id} value={user.user_id}>
+                            {user.label}
+                            {user.phoneburner_user_email ? ` · ${user.phoneburner_user_email}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">
+                      From account
+                    </p>
+                    {validUsers.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={selectAllUsers}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {selectedUserIds.length === validUsers.length
+                          ? 'Clear all'
+                          : `Select all (${validUsers.length})`}
+                      </button>
+                    )}
+                  </div>
+
+                  {usersLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading accounts…
+                    </div>
+                  ) : validUsers.length === 0 ? (
+                    <div className="rounded-lg border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                      No PhoneBurner accounts connected.{' '}
+                      <a
+                        href="/admin/phoneburner/settings"
+                        className="underline underline-offset-2 font-medium text-foreground"
+                      >
+                        Connect one
+                      </a>{' '}
+                      to start a dial session.
+                    </div>
+                  ) : (
+                    <div className="max-h-52 overflow-y-auto -mx-1 px-1 space-y-1.5">
+                      {validUsers.map((user) => {
+                        const selected = selectedUserIds.includes(user.user_id);
+                        return (
+                          <button
+                            key={user.user_id}
+                            type="button"
+                            onClick={() => toggleUser(user.user_id)}
+                            className={cn(
+                              'w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all',
+                              selected
+                                ? 'border-orange-300 bg-orange-50/60 ring-1 ring-orange-200'
+                                : 'border-border/70 hover:border-border hover:bg-muted/40',
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                'h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 transition-colors',
+                                selected
+                                  ? 'bg-orange-500 text-white'
+                                  : 'bg-muted text-muted-foreground',
+                              )}
+                            >
+                              {selected ? <Check className="h-4 w-4" /> : getInitials(user.label)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {user.label}
+                              </p>
+                              {user.phoneburner_user_email && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {user.phoneburner_user_email}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Session name + skip-recent — only in bulk mode */}
+              {!isQuickDial && (
+                <>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="session-name"
+                      className="text-[10px] font-semibold tracking-[0.14em] uppercase text-muted-foreground"
+                    >
+                      Session name
+                    </Label>
+                    <Input
+                      id="session-name"
+                      value={sessionName}
+                      onChange={(e) => setSessionName(e.target.value)}
+                      placeholder="e.g. PE Buyers — Feb 2026"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <label
+                    htmlFor="skip-recent"
+                    className="flex items-start gap-3 rounded-lg border border-border/70 bg-card px-3.5 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                  >
+                    <Checkbox
+                      id="skip-recent"
+                      checked={skipRecent}
+                      onCheckedChange={(v) => setSkipRecent(v === true)}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium text-foreground">Skip recently contacted</p>
+                      <p className="text-xs text-muted-foreground">
+                        Exclude contacts called in the last {skipRecentDays} days
+                      </p>
+                    </div>
+                  </label>
+                </>
+              )}
+
+              {/* Inline error */}
+              {inlineError && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-destructive/80">
+                    Couldn&rsquo;t start dialer
+                  </p>
+                  <p className="text-sm text-destructive mt-0.5">{inlineError}</p>
+                </div>
+              )}
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => pushMutation.mutate()}
-                disabled={
-                  pushMutation.isPending ||
-                  !sessionName.trim() ||
-                  (validUsers.length > 0 && selectedUserIds.length === 0)
-                }
-              >
-                {pushMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Pushing
-                    {selectedUserIds.length > 1
-                      ? ` to ${selectedUserIds.length} accounts...`
-                      : '...'}
-                  </>
-                ) : (
-                  <>
-                    <Phone className="mr-2 h-4 w-4" />
-                    Push to Dialer
-                    {selectedUserIds.length > 1 ? ` (${selectedUserIds.length} accounts)` : ''}
-                  </>
-                )}
-              </Button>
+            <DialogFooter className="px-6 py-4 mt-2 border-t border-border/60 bg-muted/20 flex-row sm:justify-between items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">
+                {disabledHint && !pushMutation.isPending ? disabledHint : '\u00A0'}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={handleClose}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => pushMutation.mutate()}
+                  disabled={!canSubmit}
+                  className="bg-orange-600 hover:bg-orange-700 text-white shadow-sm"
+                >
+                  {pushMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {isQuickDial ? 'Connecting…' : 'Pushing…'}
+                    </>
+                  ) : isQuickDial ? (
+                    <>
+                      <PhoneBurnerMark className="h-4 w-4" />
+                      Call {quickPhoneLabel || 'now'}
+                    </>
+                  ) : (
+                    <>
+                      <PhoneBurnerMark className="h-4 w-4" />
+                      Start session
+                      {selectedUserIds.length > 1 ? ` (${selectedUserIds.length} accounts)` : ''}
+                    </>
+                  )}
+                </Button>
+              </div>
             </DialogFooter>
           </>
         ) : multiResults.length > 0 ? (
           <>
-            {/* Multi-user results */}
-            <div className="space-y-3 py-2">
-              <p className="text-sm font-medium">Push Results</p>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {multiResults.map(({ user, result: r }) => (
-                  <div
-                    key={user.user_id}
-                    className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50 text-sm gap-2"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {r.success && r.contacts_added > 0 ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                      )}
-                      <span className="font-medium truncate">{user.label}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground">
-                        {r.contacts_added > 0 ? `${r.contacts_added} added` : r.error || '0 added'}
-                        {r.contacts_excluded > 0 && `, ${r.contacts_excluded} excluded`}
+            <div className="px-6 pb-2 space-y-2">
+              <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">
+                Push results
+              </p>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {multiResults.map(({ user, result: r }) => {
+                  const ok = r.success && r.contacts_added > 0;
+                  return (
+                    <div
+                      key={user.user_id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3.5 py-2.5"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className={cn(
+                            'h-1.5 w-1.5 rounded-full shrink-0',
+                            ok ? 'bg-emerald-500' : 'bg-destructive',
+                          )}
+                        />
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {user.label}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {ok
+                          ? `${r.contacts_added} added${
+                              r.contacts_excluded > 0 ? ` · ${r.contacts_excluded} excluded` : ''
+                            }`
+                          : r.error || '0 added'}
                       </span>
-                      {/* Per-rep dialer link so no redirect URL is silently dropped.
-                          Each rep clicks their own button — needed because browsers
-                          block multiple programmatic window.open() calls. */}
-                      {r.redirect_url && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => window.open(r.redirect_url, '_blank')}
-                        >
-                          <Phone className="h-3.5 w-3.5 mr-1" />
-                          Open dialer
-                        </Button>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="px-6 py-4 mt-2 border-t border-border/60 bg-muted/20">
               <Button onClick={handleClose}>Done</Button>
             </DialogFooter>
           </>
         ) : result ? (
           <>
-            {/* Single user result */}
-            <div className="space-y-3 py-2">
+            <div className="px-6 pb-2 space-y-3">
               {result.success && result.contacts_added > 0 ? (
-                <div className="flex items-center gap-2 p-3 rounded-md bg-muted">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                  <span className="text-sm font-medium">
-                    {result.contacts_added} contacts pushed successfully
-                  </span>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 flex items-start gap-2.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-emerald-900">
+                      {isQuickDial
+                        ? 'Dialer is opening in a new tab…'
+                        : `${result.contacts_added} contacts pushed successfully`}
+                    </p>
+                    {result.redirect_url && (
+                      <a
+                        href={result.redirect_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-emerald-800 hover:text-emerald-900 underline underline-offset-2 mt-1"
+                      >
+                        Open dialer
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                  <span className="text-sm font-medium">
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-start gap-2.5">
+                  <span className="h-2 w-2 rounded-full bg-destructive mt-1.5 shrink-0" />
+                  <p className="text-sm font-medium text-destructive">
                     {result.error || 'No contacts were pushed'}
-                  </span>
+                  </p>
                 </div>
               )}
 
               {result.contacts_excluded > 0 && result.exclusions && (
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {result.contacts_excluded} excluded:
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {result.contacts_excluded} excluded
                   </p>
                   <div className="max-h-32 overflow-y-auto space-y-0.5">
                     {result.exclusions.map((e, i) => (
                       <p key={i} className="text-xs text-muted-foreground">
-                        &bull; {e.name} &mdash; {e.reason}
+                        &middot; {e.name} — {e.reason}
                       </p>
                     ))}
                   </div>
@@ -469,22 +621,23 @@ export function PushToDialerModal({
 
               {result.contacts_failed > 0 && result.errors && (
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-destructive">
-                    {result.contacts_failed} failed:
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                    {result.contacts_failed} failed
                   </p>
                   <div className="max-h-32 overflow-y-auto space-y-0.5">
                     {result.errors.map((e, i) => (
                       <p key={i} className="text-xs text-destructive/80">
-                        &bull; {e}
+                        &middot; {e}
                       </p>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-
-            <DialogFooter>
-              <Button onClick={handleClose}>Done</Button>
+            <DialogFooter className="px-6 py-4 mt-2 border-t border-border/60 bg-muted/20">
+              <Button onClick={handleClose} variant="outline">
+                Close
+              </Button>
             </DialogFooter>
           </>
         ) : null}

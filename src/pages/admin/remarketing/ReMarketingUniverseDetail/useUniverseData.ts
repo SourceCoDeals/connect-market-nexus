@@ -34,7 +34,6 @@ export function useUniverseData() {
     size_weight: 30,
     service_weight: 45,
     owner_goals_weight: 5,
-    owner_id: null,
   });
 
   const [sizeCriteria, setSizeCriteria] = useState<SizeCriteria>({});
@@ -318,7 +317,6 @@ export function useUniverseData() {
         size_weight: universe.size_weight || 30,
         service_weight: universe.service_weight || 45,
         owner_goals_weight: universe.owner_goals_weight || 5,
-        owner_id: universe.owner_id ?? null,
       });
       setSizeCriteria((universe.size_criteria as unknown as SizeCriteria) || {});
       setGeographyCriteria((universe.geography_criteria as unknown as GeographyCriteria) || {});
@@ -429,12 +427,6 @@ export function useUniverseData() {
       };
 
       if (isNew) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!saveData.owner_id) saveData.owner_id = user?.id ?? null;
-        if (!saveData.created_by) saveData.created_by = user?.id ?? null;
-
         const { data, error } = await supabase
           .from('buyer_universes')
           .insert([saveData] as never)

@@ -40,6 +40,7 @@ import {
   UserCog,
   Megaphone,
   MoreHorizontal,
+  Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,6 +70,10 @@ interface DealBulkActionBarProps {
   /** Show enrich dropdown with mode options (default: false = plain button) */
   enrichDropdown?: boolean;
   isEnriching?: boolean;
+
+  /* ---- Contact discovery (Valuation Leads) ---- */
+  onFindContacts?: (dealIds: string[]) => void;
+  isFindingContacts?: boolean;
 
   /* ---- Valuation Leads: combined push+enrich ---- */
   onPushAndEnrich?: (dealIds: string[]) => void;
@@ -104,7 +109,10 @@ interface DealBulkActionBarProps {
   onSendToUniverse?: () => void;
 
   /* ---- Bulk assign owner ---- */
-  adminProfiles?: Record<string, { id: string; first_name: string | null; last_name: string | null; email: string }> | null;
+  adminProfiles?: Record<
+    string,
+    { id: string; first_name: string | null; last_name: string | null; email: string }
+  > | null;
   onBulkAssignOwner?: (dealIds: string[], ownerId: string | null) => void;
 }
 
@@ -122,6 +130,8 @@ export function DealBulkActionBar({
   onEnrichSelected,
   enrichDropdown,
   isEnriching,
+  onFindContacts,
+  isFindingContacts,
   onPushAndEnrich,
   isPushAndEnriching,
   onReEnrichPushed,
@@ -212,7 +222,9 @@ export function DealBulkActionBar({
         )}
 
         {/* ---- Pipeline: Approve, Push & Enrich, Re-Enrich, Enrich ---- */}
-        {(onApproveToActiveDeals || onPushAndEnrich || onEnrichSelected) && <div className="h-5 w-px bg-border" />}
+        {(onApproveToActiveDeals || onPushAndEnrich || onEnrichSelected) && (
+          <div className="h-5 w-px bg-border" />
+        )}
         {onApproveToActiveDeals && (
           <Button
             size="sm"
@@ -297,6 +309,24 @@ export function DealBulkActionBar({
             Enrich Selected
           </Button>
         ) : null}
+
+        {/* ---- Find Phone & LinkedIn (Valuation Leads contact discovery) ---- */}
+        {onFindContacts && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onFindContacts(dealIds)}
+            disabled={isFindingContacts}
+            className="gap-2"
+          >
+            {isFindingContacts ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+            Find Phone &amp; LinkedIn
+          </Button>
+        )}
 
         {/* ---- Priority toggle (top-level) ---- */}
         {showPriorityToggle && (
@@ -419,7 +449,11 @@ export function DealBulkActionBar({
             <div className="h-5 w-px bg-border" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                >
                   <Trash2 className="h-4 w-4" />
                   Dismiss
                   <ChevronDown className="h-3 w-3" />

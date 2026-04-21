@@ -229,8 +229,8 @@ Deno.serve(async (req) => {
   // ─── Verify webhook secret ──────────────────────────────────────────
   const webhookSecret = Deno.env.get('SMARTLEAD_WEBHOOK_SECRET');
   if (webhookSecret) {
-    // CTO audit: header-only; query params leak via access logs.
-    const providedSecret = req.headers.get('x-webhook-secret');
+    const providedSecret =
+      req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
 
     if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
       console.warn('[smartlead-inbox-webhook] Invalid webhook secret');
@@ -481,7 +481,9 @@ Deno.serve(async (req) => {
         'referral',
         'not_now',
       ];
-      const isGPCampaign = campaignNameLower.includes('gp');
+      const _isGPBuyerCampaign =
+        campaignNameLower.includes('gp') && campaignNameLower.includes('buyer');
+      const isGPCampaign = campaignNameLower.includes('gp') && !campaignNameLower.includes('buyer');
       const isActivated =
         ACTIVATED_CATEGORIES.includes(classification.category) ||
         classification.sentiment === 'positive' ||

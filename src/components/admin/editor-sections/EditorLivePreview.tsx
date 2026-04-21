@@ -198,6 +198,8 @@ function MarketplaceCardPreview({ formValues, imagePreview }: EditorLivePreviewP
             revenue={revenue}
             ebitda={ebitda}
             formatCurrency={formatCurrency}
+            fullTimeEmployees={formValues.full_time_employees || 0}
+            partTimeEmployees={formValues.part_time_employees || 0}
           />
         </div>
 
@@ -313,75 +315,70 @@ function FullListingPreview({ formValues, imagePreview }: EditorLivePreviewProps
         </div>
 
         {/* Financial Grid — gated: buyers see this only after connection approval */}
-        {(() => {
-          const previewMetrics = [
-            {
-              label: `${new Date().getFullYear() - 1} Revenue`,
-              value: formatCurrency(revenue),
-              subtitle: formValues.revenue_metric_subtitle || formValues.categories?.[0] || '',
-            },
-            {
-              label: 'EBITDA',
-              value: formatCurrency(ebitda),
-              subtitle: formValues.ebitda_metric_subtitle || `~${ebitdaMargin}% margin`,
-            },
-            // Metric 3: Custom (when set by admin)
-            ...(formValues.metric_3_type === 'custom' && formValues.metric_3_custom_label
-              ? [
-                  {
-                    label: formValues.metric_3_custom_label,
-                    value: formValues.metric_3_custom_value || '',
-                    subtitle: formValues.metric_3_custom_subtitle || '',
-                  },
-                ]
-              : []),
-            // Metric 4
-            ...(formValues.metric_4_type === 'custom' && formValues.metric_4_custom_label
-              ? [
-                  {
-                    label: formValues.metric_4_custom_label,
-                    value: formValues.metric_4_custom_value || '',
-                    subtitle: formValues.metric_4_custom_subtitle || '',
-                  },
-                ]
-              : [
-                  {
-                    label: 'EBITDA Margin',
-                    value: `${ebitdaMargin}%`,
-                    subtitle:
-                      formValues.metric_4_custom_subtitle || formValues.categories?.[0] || '',
-                  },
-                ]),
-          ];
-          const colClass =
-            previewMetrics.length >= 4
-              ? 'grid-cols-2 sm:grid-cols-4'
-              : previewMetrics.length === 3
-                ? 'grid-cols-2 sm:grid-cols-3'
-                : 'grid-cols-2';
-          return (
-            <div className="relative">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
-                Visible after connection approval only
-              </p>
-              <div
-                className={`grid ${colClass} gap-6 border-b border-border/30 pb-4 mb-6 opacity-80`}
-              >
-                {previewMetrics.map((metric) => (
-                  <div key={metric.label} className="space-y-1">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                      {metric.label}
-                    </p>
-                    <p className="text-2xl font-light text-foreground">{metric.value}</p>
-                    {metric.subtitle && (
-                      <p className="text-xs text-muted-foreground">{metric.subtitle}</p>
-                    )}
-                  </div>
-                ))}
+        <div className="relative">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+            Visible after connection approval only
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 border-b border-border/30 pb-4 mb-6 opacity-80">
+            {[
+              {
+                label: `${new Date().getFullYear() - 1} Revenue`,
+                value: formatCurrency(revenue),
+                subtitle: formValues.revenue_metric_subtitle || formValues.categories?.[0] || '',
+              },
+              {
+                label: 'EBITDA',
+                value: formatCurrency(ebitda),
+                subtitle: formValues.ebitda_metric_subtitle || `~${ebitdaMargin}% margin`,
+              },
+              // Metric 3
+              ...(formValues.metric_3_type === 'custom' && formValues.metric_3_custom_label
+                ? [
+                    {
+                      label: formValues.metric_3_custom_label,
+                      value: formValues.metric_3_custom_value || '',
+                      subtitle: formValues.metric_3_custom_subtitle || '',
+                    },
+                  ]
+                : (formValues.full_time_employees || 0) + (formValues.part_time_employees || 0) > 0
+                  ? [
+                      {
+                        label: 'Team Size',
+                        value: `${(formValues.full_time_employees || 0) + (formValues.part_time_employees || 0)}`,
+                        subtitle: `${formValues.full_time_employees || 0} FT, ${formValues.part_time_employees || 0} PT`,
+                      },
+                    ]
+                  : []),
+              // Metric 4
+              ...(formValues.metric_4_type === 'custom' && formValues.metric_4_custom_label
+                ? [
+                    {
+                      label: formValues.metric_4_custom_label,
+                      value: formValues.metric_4_custom_value || '',
+                      subtitle: formValues.metric_4_custom_subtitle || '',
+                    },
+                  ]
+                : [
+                    {
+                      label: 'EBITDA Margin',
+                      value: `${ebitdaMargin}%`,
+                      subtitle:
+                        formValues.metric_4_custom_subtitle || formValues.categories?.[0] || '',
+                    },
+                  ]),
+            ].map((metric) => (
+              <div key={metric.label} className="space-y-1">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                  {metric.label}
+                </p>
+                <p className="text-2xl font-light text-foreground">{metric.value}</p>
+                {metric.subtitle && (
+                  <p className="text-xs text-muted-foreground">{metric.subtitle}</p>
+                )}
               </div>
-            </div>
-          );
-        })()}
+            ))}
+          </div>
+        </div>
 
         {/* Business Details Grid */}
         <BusinessDetailsGrid

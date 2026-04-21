@@ -6,7 +6,9 @@ import {
   RefreshCw,
   Settings,
   Users,
+  Database,
   Bell,
+  HelpCircle,
   Loader2,
   Store,
   Target,
@@ -62,17 +64,10 @@ const FormMonitoringTab = lazy(() =>
 const MyDealsTab = lazy(() =>
   import('@/components/admin/dashboard/MyDealsTab').then((m) => ({ default: m.MyDealsTab })),
 );
-const MarketplaceMetricsTab = lazy(() =>
-  import('@/components/admin/marketplace/MarketplaceMetricsTab').then((m) => ({
-    default: m.MarketplaceMetricsTab,
-  })),
-);
 
-// Lazy-load remarketing dashboard content (V2 — phase 1 rebuild).
-// V1 (ReMarketingDashboard.tsx) is kept on disk for rollback; swap this import
-// back if V2 has a blocking bug.
+// Lazy-load remarketing dashboard content
 const ReMarketingDashboardContent = lazy(
-  () => import('@/pages/admin/remarketing/ReMarketingDashboardV2'),
+  () => import('@/pages/admin/remarketing/ReMarketingDashboard'),
 );
 
 // Lazy-load daily tasks dashboard content
@@ -190,21 +185,34 @@ const AdminDashboard = () => {
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  {canManagePermissions && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50">
-                          <Settings className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={handleManagePermissions}>
-                          <Users className="mr-2 h-4 w-4" />
-                          Manage Permissions
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50">
+                        <Settings className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {canManagePermissions && (
+                        <>
+                          <DropdownMenuItem onClick={handleManagePermissions}>
+                            <Users className="mr-2 h-4 w-4" />
+                            Manage Permissions
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      <DropdownMenuItem disabled>
+                        <Database className="mr-2 h-4 w-4" />
+                        Export Data
+                        <span className="ml-auto text-xs text-muted-foreground">Soon</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled>
+                        <HelpCircle className="mr-2 h-4 w-4" />
+                        Help & Support
+                        <span className="ml-auto text-xs text-muted-foreground">Soon</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
@@ -260,11 +268,10 @@ const AdminDashboard = () => {
 
           {/* Marketplace sub-tabs (only when marketplace is active) */}
           {activeDashboard === 'marketplace' && (
-            <Tabs defaultValue="metrics" className="w-full">
+            <Tabs defaultValue="analytics" className="w-full">
               <div className="px-4 md:px-8 overflow-x-auto">
                 <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
                   {[
-                    { value: 'metrics', label: 'Metrics' },
                     { value: 'analytics', label: 'Analytics' },
                     { value: 'overview', label: 'Overview' },
                     { value: 'my-deals', label: 'My Pipeline' },
@@ -286,11 +293,6 @@ const AdminDashboard = () => {
               </div>
 
               <div className="px-4 md:px-8 py-8">
-                <TabsContent value="metrics" className="mt-0">
-                  <Suspense fallback={<TabFallback />}>
-                    <MarketplaceMetricsTab />
-                  </Suspense>
-                </TabsContent>
                 <TabsContent value="overview" className="mt-0 space-y-6">
                   <Suspense fallback={<TabFallback />}>
                     <StripeOverviewTab />

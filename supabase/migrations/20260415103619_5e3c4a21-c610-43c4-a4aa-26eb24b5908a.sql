@@ -1,0 +1,3 @@
+UPDATE public.listings SET webflow_slug = 'performance-media-analytics-platform' WHERE id = 'f2bcd91c-3654-43b5-800c-1590523afd2e';
+UPDATE public.listings SET webflow_slug = 'central-texas-residential-plumbing-business' WHERE id = '2b8b872b-6fc1-4511-a3ce-8c283c2ed5a4';
+UPDATE public.listings SET webflow_slug = 'veteran-owned-residential-commercial-damage-restoration' WHERE id = 'b5490603-dd2c-4b14-a397-d087e8fc6c51';

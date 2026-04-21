@@ -1,4 +1,4 @@
-import { BuyerType } from "@/types";
+import { BuyerType } from '@/types';
 
 export interface SignupFormData {
   email: string;
@@ -11,7 +11,7 @@ export interface SignupFormData {
   linkedinProfile: string;
   phoneNumber: string;
   jobTitle?: string;
-  buyerType: BuyerType | "";
+  buyerType: BuyerType | '';
   estimatedRevenue: string;
   fundSize: string;
   investmentSize: string[];
@@ -65,46 +65,123 @@ export interface SignupFormData {
   referralSourceDetail?: string;
   dealSourcingMethods?: string[];
   targetAcquisitionVolume?: string;
+  inviteToken?: string;
 }
 
 export const INITIAL_FORM_DATA: SignupFormData = {
-  email: "", password: "", confirmPassword: "",
-  firstName: "", lastName: "", company: "", website: "", linkedinProfile: "",
-  phoneNumber: "", jobTitle: "", buyerType: "",
-  estimatedRevenue: "", fundSize: "", investmentSize: [], aum: "",
-  isFunded: "", fundedBy: "", targetCompanySize: "", fundingSource: "",
-  needsLoan: "", idealTarget: "",
-  idealTargetDescription: "", businessCategories: [], targetLocations: [],
-  revenueRangeMin: "", revenueRangeMax: "", specificBusinessSearch: "",
-  targetDealSizeMin: "", targetDealSizeMax: "",
-  portfolioCompanyAddon: "", deployingCapitalNow: "", owningBusinessUnit: "",
-  dealSizeBand: "", integrationPlan: [], corpdevIntent: "", discretionType: "",
-  permanentCapital: false, operatingCompanyTargets: [],
-  committedEquityBand: "", equitySource: [], flexSubxmEbitda: undefined,
-  backersSummary: "", deploymentTiming: "", searchType: "", acqEquityBand: "",
-  financingPlan: [], flexSub2mEbitda: undefined, anchorInvestorsSummary: "",
-  searchStage: "", onBehalfOfBuyer: "", buyerRole: "", buyerOrgUrl: "",
-  mandateBlurb: "", ownerIntent: "", ownerTimeline: "", usesBank: "",
-  maxEquityToday: "", dealIntent: "", exclusions: [], includeKeywords: [],
-  referralSource: "", referralSourceDetail: "", dealSourcingMethods: [],
-  targetAcquisitionVolume: "",
+  email: '',
+  password: '',
+  confirmPassword: '',
+  firstName: '',
+  lastName: '',
+  company: '',
+  website: '',
+  linkedinProfile: '',
+  phoneNumber: '',
+  jobTitle: '',
+  buyerType: '',
+  estimatedRevenue: '',
+  fundSize: '',
+  investmentSize: [],
+  aum: '',
+  isFunded: '',
+  fundedBy: '',
+  targetCompanySize: '',
+  fundingSource: '',
+  needsLoan: '',
+  idealTarget: '',
+  idealTargetDescription: '',
+  businessCategories: [],
+  targetLocations: [],
+  revenueRangeMin: '',
+  revenueRangeMax: '',
+  specificBusinessSearch: '',
+  targetDealSizeMin: '',
+  targetDealSizeMax: '',
+  portfolioCompanyAddon: '',
+  deployingCapitalNow: '',
+  owningBusinessUnit: '',
+  dealSizeBand: '',
+  integrationPlan: [],
+  corpdevIntent: '',
+  discretionType: '',
+  permanentCapital: false,
+  operatingCompanyTargets: [],
+  committedEquityBand: '',
+  equitySource: [],
+  flexSubxmEbitda: undefined,
+  backersSummary: '',
+  deploymentTiming: '',
+  searchType: '',
+  acqEquityBand: '',
+  financingPlan: [],
+  flexSub2mEbitda: undefined,
+  anchorInvestorsSummary: '',
+  searchStage: '',
+  onBehalfOfBuyer: '',
+  buyerRole: '',
+  buyerOrgUrl: '',
+  mandateBlurb: '',
+  ownerIntent: '',
+  ownerTimeline: '',
+  usesBank: '',
+  maxEquityToday: '',
+  dealIntent: '',
+  exclusions: [],
+  includeKeywords: [],
+  referralSource: '',
+  referralSourceDetail: '',
+  dealSourcingMethods: [],
+  targetAcquisitionVolume: '',
 };
 
 export const STEPS = [
-  "Account Information",
-  "Personal Details",
-  "How did you hear about us?",
-  "Buyer Type",
-  "Buyer Profile",
+  'Account Information',
+  'Personal Details',
+  'How did you hear about us?',
+  'Buyer Type',
+  'Buyer Profile',
 ];
 
 export const BUYER_TYPE_OPTIONS = [
-  { value: "corporate", label: "Corporate Development (Strategic)", description: "Corporate buyers seeking strategic acquisitions" },
-  { value: "privateEquity", label: "Private Equity", description: "Investment funds focused on acquiring and growing companies" },
-  { value: "familyOffice", label: "Family Office", description: "Private wealth management offices making direct investments" },
-  { value: "searchFund", label: "Search Fund", description: "Entrepreneur-led acquisition vehicles" },
-  { value: "individual", label: "Individual Investor", description: "High-net-worth individuals making personal investments" },
-  { value: "independentSponsor", label: "Independent Sponsor", description: "Deal-by-deal investment professionals" },
-  { value: "advisor", label: "Advisor / Banker", description: "Investment bankers and M&A advisors" },
-  { value: "businessOwner", label: "Business Owner / Operator", description: "Current operators exploring add-on or platform acquisitions" },
+  {
+    value: 'corporate',
+    label: 'Corporate Development (Strategic)',
+    description: 'Corporate buyers seeking strategic acquisitions',
+  },
+  {
+    value: 'privateEquity',
+    label: 'Private Equity',
+    description: 'Investment funds focused on acquiring and growing companies',
+  },
+  {
+    value: 'familyOffice',
+    label: 'Family Office',
+    description: 'Private wealth management offices making direct investments',
+  },
+  {
+    value: 'searchFund',
+    label: 'Search Fund',
+    description: 'Entrepreneur-led acquisition vehicles',
+  },
+  {
+    value: 'individual',
+    label: 'Individual Investor',
+    description: 'High-net-worth individuals making personal investments',
+  },
+  {
+    value: 'independentSponsor',
+    label: 'Independent Sponsor',
+    description: 'Deal-by-deal investment professionals',
+  },
+  {
+    value: 'advisor',
+    label: 'Advisor / Banker',
+    description: 'Investment bankers and M&A advisors',
+  },
+  {
+    value: 'businessOwner',
+    label: 'Business Owner / Operator',
+    description: 'Current operators exploring add-on or platform acquisitions',
+  },
 ];

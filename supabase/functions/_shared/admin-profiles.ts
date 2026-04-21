@@ -12,15 +12,15 @@ export const ADMIN_PROFILES: Record<string, AdminProfile> = {
     name: 'Bill Martin',
     title: 'Principal & SVP - Growth',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'adam.haile@sourcecodeals.com': {
     email: 'adam.haile@sourcecodeals.com',
     name: 'Adam Haile',
-    title: 'Founder & CEO',
+    title: 'Head of Growth',
     phone: '',
-    calendlyUrl: ''
-  }
+    calendlyUrl: '',
+  },
 };
 
 export const getAdminProfile = (email: string): AdminProfile | null => {

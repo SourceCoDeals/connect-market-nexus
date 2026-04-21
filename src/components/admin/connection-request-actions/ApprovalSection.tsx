@@ -14,20 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-} from '@/components/ui/tooltip';
-import {
-  Shield,
-  CheckCircle,
-  XCircle,
-  Undo2,
-  Scale,
-  Clock,
-} from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { Shield, CheckCircle, XCircle, Undo2, Scale, Clock } from 'lucide-react';
 import type { ConnectionRequestActionsProps } from './types';
 
 interface ApprovalSectionProps {
@@ -51,6 +39,8 @@ interface ApprovalSectionProps {
   setRejectNote: (note: string) => void;
   // Flag button rendered inline in the pending banner — passed as a render prop
   flagButton?: React.ReactNode;
+  /** When false, the pending decision banner is hidden (used when quick actions are shown in the row) */
+  showPendingBanner?: boolean;
 }
 
 export function ApprovalSection({
@@ -70,13 +60,14 @@ export function ApprovalSection({
   rejectNote,
   setRejectNote,
   flagButton,
+  showPendingBanner = true,
 }: ApprovalSectionProps) {
   if (!requestId) return null;
 
   return (
     <>
       {/* ── DECISION BANNER ── */}
-      {requestStatus === 'pending' && (
+      {requestStatus === 'pending' && showPendingBanner && (
         <div className="bg-muted/40 rounded-xl overflow-hidden border border-border">
           <div className="px-6 py-5 flex items-center justify-between gap-6">
             <div className="flex items-center gap-3 min-w-0">
@@ -104,7 +95,8 @@ export function ApprovalSection({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[260px] text-xs">
-                    Approves the buyer, sends approval email, adds to pipeline, and posts a deal thread message
+                    Approves the buyer, sends approval email, adds to pipeline, and posts a deal
+                    thread message
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>

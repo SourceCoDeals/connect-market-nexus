@@ -35,14 +35,25 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const body = await req.json() as {
+    const body = (await req.json()) as {
       documentType: 'nda' | 'fee_agreement';
       recipientEmail?: string;
       recipientName?: string;
       firmId?: string;
+      senderEmail?: string;
+      senderName?: string;
+      listingId?: string;
     };
 
-    const { documentType, recipientEmail: overrideEmail, recipientName: overrideName, firmId: overrideFirmId } = body;
+    const {
+      documentType,
+      recipientEmail: overrideEmail,
+      recipientName: overrideName,
+      firmId: overrideFirmId,
+      senderEmail: reqSenderEmail,
+      senderName: reqSenderName,
+      listingId: reqListingId,
+    } = body;
     if (!documentType || !['nda', 'fee_agreement'].includes(documentType)) {
       return new Response(JSON.stringify({ error: 'Invalid documentType' }), {
         status: 400,
@@ -82,7 +93,9 @@ Deno.serve(async (req: Request) => {
           .maybeSingle();
         if (buyerProfile) {
           targetUserId = buyerProfile.id;
-          const { data: firmIdResult } = await supabaseAdmin.rpc('resolve_user_firm_id', { p_user_id: buyerProfile.id });
+          const { data: firmIdResult } = await supabaseAdmin.rpc('resolve_user_firm_id', {
+            p_user_id: buyerProfile.id,
+          });
           firmId = firmIdResult;
         } else {
           targetUserId = userId;
@@ -92,7 +105,10 @@ Deno.serve(async (req: Request) => {
       if (!firmId) {
         if (targetUserId !== userId) {
           const { data: healProfile } = await supabaseAdmin
-            .from('profiles').select('email, company').eq('id', targetUserId).maybeSingle();
+            .from('profiles')
+            .select('email, company')
+            .eq('id', targetUserId)
+            .maybeSingle();
           const healResult = await selfHealFirm(supabaseAdmin, targetUserId, {
             email: healProfile?.email ?? overrideEmail,
             company: healProfile?.company,
@@ -121,10 +137,13 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      buyerName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email;
+      buyerName =
+        [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email;
       buyerEmail = profile.email;
 
-      const { data: firmIdResult } = await supabaseAdmin.rpc('resolve_user_firm_id', { p_user_id: userId });
+      const { data: firmIdResult } = await supabaseAdmin.rpc('resolve_user_firm_id', {
+        p_user_id: userId,
+      });
       firmId = firmIdResult;
 
       if (!firmId) {
@@ -143,6 +162,68 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // ── Ensure a connection_requests row exists for admin-triggered sends ──
+    // Only when there is an explicit listing — standalone NDA/Fee sends (e.g. from
+    // UsersTable) are NOT deal connection requests and should not create CR rows.
+    if (isAdmin && overrideEmail && reqListingId) {
+      try {
+        const { data: existingCR } = await supabaseAdmin
+          .from('connection_requests')
+          .select('id')
+          .eq('lead_email', buyerEmail)
+          .eq('listing_id', reqListingId)
+          .maybeSingle();
+
+        if (!existingCR) {
+          const crInsert: Record<string, unknown> = {
+            user_id: targetUserId !== userId ? targetUserId : null,
+            listing_id: reqListingId,
+            status: 'pending',
+            source: 'email',
+            lead_email: buyerEmail,
+            lead_name: buyerName,
+            firm_id: firmId,
+          };
+
+          if (documentType === 'nda') {
+            crInsert.lead_nda_email_sent = true;
+            crInsert.lead_nda_email_sent_at = new Date().toISOString();
+          } else {
+            crInsert.lead_fee_agreement_email_sent = true;
+            crInsert.lead_fee_agreement_email_sent_at = new Date().toISOString();
+          }
+
+          const { error: crErr } = await supabaseAdmin.from('connection_requests').insert(crInsert);
+
+          if (crErr) {
+            console.warn(
+              '[request-agreement-email] Could not create connection_requests row:',
+              crErr.message,
+            );
+          } else {
+            console.log(
+              `[request-agreement-email] Created connection_requests row for ${buyerEmail}`,
+            );
+          }
+        } else {
+          const crUpdate: Record<string, unknown> = {};
+          if (documentType === 'nda') {
+            crUpdate.lead_nda_email_sent = true;
+            crUpdate.lead_nda_email_sent_at = new Date().toISOString();
+          } else {
+            crUpdate.lead_fee_agreement_email_sent = true;
+            crUpdate.lead_fee_agreement_email_sent_at = new Date().toISOString();
+          }
+          await supabaseAdmin.from('connection_requests').update(crUpdate).eq('id', existingCR.id);
+          console.log(
+            `[request-agreement-email] Updated existing connection_requests ${existingCR.id} for ${buyerEmail}`,
+          );
+        }
+      } catch (crError) {
+        console.warn('[request-agreement-email] connection_requests upsert error:', crError);
+      }
+    }
+
     // Check if already signed
     const { data: firm } = await supabaseAdmin
       .from('firm_agreements')
@@ -152,10 +233,13 @@ Deno.serve(async (req: Request) => {
 
     const statusCol = documentType === 'nda' ? 'nda_status' : 'fee_agreement_status';
     if (firm && (firm as Record<string, unknown>)[statusCol] === 'signed') {
-      return new Response(JSON.stringify({ success: true, alreadySigned: true, message: 'Document already signed.' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({ success: true, alreadySigned: true, message: 'Document already signed.' }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        },
+      );
     }
 
     // Fetch document attachment
@@ -172,10 +256,16 @@ Deno.serve(async (req: Request) => {
         const arrayBuffer = await fileData.arrayBuffer();
         const base64Content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
         attachmentList = [{ name: docFileName, content: base64Content }];
-        console.log(`[request-agreement-email] Attached ${docFileName} (${arrayBuffer.byteLength} bytes)`);
+        console.log(
+          `[request-agreement-email] Attached ${docFileName} (${arrayBuffer.byteLength} bytes)`,
+        );
       } else {
-        console.warn(`[request-agreement-email] Could not download ${docFileName}: ${fileErr?.message}`);
-        const { data: docUrl } = supabaseAdmin.storage.from('agreement-templates').getPublicUrl(docFileName);
+        console.warn(
+          `[request-agreement-email] Could not download ${docFileName}: ${fileErr?.message}`,
+        );
+        const { data: docUrl } = supabaseAdmin.storage
+          .from('agreement-templates')
+          .getPublicUrl(docFileName);
         if (docUrl?.publicUrl) {
           downloadLink = `<p style="margin:20px 0; text-align:center;">
             <a href="${docUrl.publicUrl}" style="background:#1e293b;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:500;display:inline-block;">
@@ -216,8 +306,9 @@ Deno.serve(async (req: Request) => {
       to: buyerEmail,
       toName: buyerName,
       subject: `Your ${docLabel} from SourceCo`,
-      senderName: 'SourceCo',
-      replyTo: 'support@sourcecodeals.com',
+      senderName: reqSenderName || 'SourceCo',
+      senderEmail: reqSenderEmail,
+      replyTo: reqSenderEmail || 'support@sourcecodeals.com',
       isTransactional: true,
       attachments: attachmentList.length > 0 ? attachmentList : undefined,
       metadata: {
@@ -260,10 +351,13 @@ Deno.serve(async (req: Request) => {
 
     // Update firm_agreements
     const now = new Date().toISOString();
-    const requestedAtCol = documentType === 'nda' ? 'nda_requested_at' : 'fee_agreement_requested_at';
-    const requestedByCol = documentType === 'nda' ? 'nda_requested_by' : 'fee_agreement_requested_by';
+    const requestedAtCol =
+      documentType === 'nda' ? 'nda_requested_at' : 'fee_agreement_requested_at';
+    const requestedByCol =
+      documentType === 'nda' ? 'nda_requested_by' : 'fee_agreement_requested_by';
     const sentAtCol = documentType === 'nda' ? 'nda_sent_at' : 'fee_agreement_sent_at';
-    const emailSentAtCol = documentType === 'nda' ? 'nda_email_sent_at' : 'fee_agreement_email_sent_at';
+    const emailSentAtCol =
+      documentType === 'nda' ? 'nda_email_sent_at' : 'fee_agreement_email_sent_at';
 
     const firmUpdate: Record<string, unknown> = {
       [requestedAtCol]: now,
@@ -276,10 +370,7 @@ Deno.serve(async (req: Request) => {
       firmUpdate[emailSentAtCol] = now;
     }
 
-    await supabaseAdmin
-      .from('firm_agreements')
-      .update(firmUpdate)
-      .eq('id', firmId);
+    await supabaseAdmin.from('firm_agreements').update(firmUpdate).eq('id', firmId);
 
     // Admin notifications
     try {
@@ -311,26 +402,31 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!emailResult.success) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Failed to send email. Our team has been notified.',
-        correlationId: emailResult.correlationId,
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to send email. Our team has been notified.',
+          correlationId: emailResult.correlationId,
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        },
+      );
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: `${docLabel} sent to ${buyerEmail}. Check your inbox and reply with the signed copy.`,
-      correlationId: emailResult.correlationId,
-      emailId: emailResult.emailId,
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `${docLabel} sent to ${buyerEmail}. Check your inbox and reply with the signed copy.`,
+        correlationId: emailResult.correlationId,
+        emailId: emailResult.emailId,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      },
+    );
   } catch (err) {
     console.error('[request-agreement-email] Error:', err);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {

@@ -307,11 +307,7 @@ export const CompanyOverviewCard = ({
       setIsEditOpen(false);
       toast.success('Company overview updated');
     } catch (error) {
-      // Surface the underlying error (RLS denial, constraint violation,
-      // invalid column value). A generic "Failed to save" hides root causes
-      // and forces the admin back to DevTools to diagnose.
-      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
-      toast.error(`Failed to save: ${message}`);
+      toast.error('Failed to save');
     } finally {
       setIsSaving(false);
     }

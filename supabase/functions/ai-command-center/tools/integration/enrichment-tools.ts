@@ -928,51 +928,55 @@ export async function enrichLinkedInContact(
             `[enrich-linkedin] Updated CRM contact ${existing.id} by name match — corrected LinkedIn URL: ${(existing.linkedin_url as string) || 'none'} → ${linkedinUrl}`,
           );
         } else {
-          // No name match or ambiguous — create new contact via the
-          // canonical RPC (direct INSERT is REVOKEd for authenticated,
-          // and `created_by` is not a column on public.contacts).
-          const { data: newId } = await (supabase as any).rpc('contacts_upsert', {
-            p_identity: { email: result.email, linkedin_url: result.linkedin_url || linkedinUrl },
-            p_fields: {
-              first_name: result.first_name || 'Unknown',
-              last_name: result.last_name || '',
+          // No name match or ambiguous — create new contact
+          const { data: newContact } = await (supabase as any)
+            .from('contacts')
+            .insert({
+              first_name: result.first_name,
+              last_name: result.last_name,
               email: result.email,
               phone: result.phone || null,
               title: result.title || null,
               linkedin_url: result.linkedin_url || linkedinUrl,
+              company_name: result.company || null,
               contact_type: 'buyer',
-            },
-            p_source: 'ai_command_center',
-          });
+              source: 'ai_command_center',
+              created_by: userId,
+              archived: false,
+            })
+            .select('id')
+            .single();
 
-          if (typeof newId === 'string') {
-            crmContactId = newId;
+          if (newContact) {
+            crmContactId = newContact.id;
             crmAction = 'created';
-            console.log(
-              `[enrich-linkedin] Created/merged CRM contact ${newId} via contacts_upsert`,
-            );
+            console.log(`[enrich-linkedin] Created new CRM contact ${newContact.id}`);
           }
         }
       } else {
-        // No name info — create new contact via the canonical RPC.
-        const { data: newId } = await (supabase as any).rpc('contacts_upsert', {
-          p_identity: { email: result.email, linkedin_url: result.linkedin_url || linkedinUrl },
-          p_fields: {
-            first_name: result.first_name || 'Unknown',
-            last_name: result.last_name || '',
+        // No name info — create new contact
+        const { data: newContact } = await (supabase as any)
+          .from('contacts')
+          .insert({
+            first_name: result.first_name,
+            last_name: result.last_name,
             email: result.email,
             phone: result.phone || null,
             title: result.title || null,
             linkedin_url: result.linkedin_url || linkedinUrl,
+            company_name: result.company || null,
             contact_type: 'buyer',
-          },
-          p_source: 'ai_command_center',
-        });
+            source: 'ai_command_center',
+            created_by: userId,
+            archived: false,
+          })
+          .select('id')
+          .single();
 
-        if (typeof newId === 'string') {
-          crmContactId = newId;
+        if (newContact) {
+          crmContactId = newContact.id;
           crmAction = 'created';
-          console.log(`[enrich-linkedin] Created/merged CRM contact ${newId} via contacts_upsert`);
+          console.log(`[enrich-linkedin] Created new CRM contact ${newContact.id}`);
         }
       }
     }

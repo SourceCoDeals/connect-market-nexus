@@ -5,7 +5,7 @@
  * The unified `contacts` table is the single source of truth for contact info.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { untypedFrom } from '@/integrations/supabase/client';
 import { safeQuery, type DatabaseResult } from '@/lib/database';
 import type { ContactRecord } from './types';
 
@@ -20,8 +20,7 @@ export async function getContactsByType(
   options?: { limit?: number; offset?: number },
 ): Promise<DatabaseResult<ContactRecord[]>> {
   return safeQuery(async () => {
-    let query = supabase
-      .from('contacts')
+    let query = untypedFrom('contacts')
       .select(CONTACT_SELECT, { count: 'exact' })
       .eq('contact_type', contactType)
       .neq('archived', true)
@@ -39,27 +38,18 @@ export async function getContactsByType(
 /**
  * Fetch a contact by ID.
  */
-export async function getContactById(
-  id: string,
-): Promise<DatabaseResult<ContactRecord>> {
+export async function getContactById(id: string): Promise<DatabaseResult<ContactRecord>> {
   return safeQuery(async () => {
-    return supabase
-      .from('contacts')
-      .select(CONTACT_SELECT)
-      .eq('id', id)
-      .single();
+    return untypedFrom('contacts').select(CONTACT_SELECT).eq('id', id).single();
   });
 }
 
 /**
  * Fetch contacts for a specific firm.
  */
-export async function getContactsForFirm(
-  firmId: string,
-): Promise<DatabaseResult<ContactRecord[]>> {
+export async function getContactsForFirm(firmId: string): Promise<DatabaseResult<ContactRecord[]>> {
   return safeQuery(async () => {
-    return supabase
-      .from('contacts')
+    return untypedFrom('contacts')
       .select(CONTACT_SELECT)
       .eq('firm_id', firmId)
       .neq('archived', true)
@@ -75,8 +65,7 @@ export async function getContactsForListing(
   listingId: string,
 ): Promise<DatabaseResult<ContactRecord[]>> {
   return safeQuery(async () => {
-    return supabase
-      .from('contacts')
+    return untypedFrom('contacts')
       .select(CONTACT_SELECT)
       .eq('listing_id', listingId)
       .eq('contact_type', 'seller')
@@ -92,11 +81,7 @@ export async function getContactByProfileId(
   profileId: string,
 ): Promise<DatabaseResult<ContactRecord>> {
   return safeQuery(async () => {
-    return supabase
-      .from('contacts')
-      .select(CONTACT_SELECT)
-      .eq('profile_id', profileId)
-      .single();
+    return untypedFrom('contacts').select(CONTACT_SELECT).eq('profile_id', profileId).single();
   });
 }
 
@@ -108,8 +93,7 @@ export async function searchContacts(
   options?: { contactType?: 'buyer' | 'seller'; limit?: number },
 ): Promise<DatabaseResult<ContactRecord[]>> {
   return safeQuery(async () => {
-    let q = supabase
-      .from('contacts')
+    let q = untypedFrom('contacts')
       .select(CONTACT_SELECT)
       .neq('archived', true)
       .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`)

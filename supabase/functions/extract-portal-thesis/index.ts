@@ -244,103 +244,40 @@ const THESIS_TOOL = {
 function buildPrompts(docTitle: string, docType: string) {
   const systemPrompt = `You are an expert M&A analyst extracting a private-equity buyer's investment thesis from internal notes, meeting transcripts, thesis memos, or PE firm briefing documents.
 
-## GOAL: HIGH RECALL — EXTRACT EVERY DISTINCT THESIS
+RULES:
+1. ONE THESIS PER VERTICAL: If the buyer targets multiple verticals (e.g. "HVAC, Plumbing, and Electrical"), produce ONE entry per vertical when they have distinct criteria, or ONE grouped entry when the criteria are identical across verticals. Prefer splitting when in doubt — reviewers can merge.
 
-PE firms typically have multiple acquisition platforms / portcos, each with its own thesis. A single document may list 5-25 distinct verticals. Your job is to capture EVERY ONE.
-
-Reviewers will dedupe and merge in the UI — missing a thesis is a critical failure, over-extracting is harmless.
-
-## RULES
-
-1. ONE THESIS PER DISTINCT VERTICAL / PORTCO / PLATFORM.
-   - If the doc has a bullet "Residential HVAC (Apex)" followed by its own size/geo/customer criteria, that is ONE thesis row.
-   - If the next bullet is "Residential Restoration (Guardian)" with its own criteria, that is a SECOND thesis row.
-   - When a document organizes theses under section headers like "RESIDENTIAL SERVICES", "COMMERCIAL SERVICES", "PROFESSIONAL SERVICES", "SOFTWARE" — extract every bulleted sub-thesis under each header, do NOT collapse by section.
-   - When in doubt, SPLIT. Producing 25 rows is better than producing 3 collapsed rows.
-
-2. USE PORTCO NAMES IN THE LABEL WHEN PRESENT.
-   - Document says "Residential HVAC (Apex)" → industry_label: "Residential HVAC (Apex)".
-   - Document says "Commercial Paving" with no portco name → industry_label: "Commercial Paving".
-
-3. FINANCIAL NUMBERS AS RAW INTEGERS.
+2. FINANCIAL NUMBERS AS RAW INTEGERS: Always raw dollars.
    - "$2.5M+ revenue" -> revenue_min: 2500000, revenue_max: null
    - "EBITDA $750K-$3M" -> ebitda_min: 750000, ebitda_max: 3000000
    - "10-50 employees" -> employee_min: 10, employee_max: 50
-   - "$1m+ EBITDA" -> ebitda_min: 1000000, ebitda_max: null
 
-4. GEOGRAPHY.
-   - Two-letter uppercase US state codes only.
-   - "US" / "United States" / "National" / "Nationwide" -> empty target_states array.
-   - "Southeast" -> expand to SC, NC, GA, FL, TN, AL, MS, AR, LA.
-   - "Northeast" -> ME, NH, VT, MA, RI, CT, NY, NJ, PA, MD, DE.
-   - "West Coast" -> CA, OR, WA.
-   - Non-US geography (Canada, UK, EU, AU, NZ) -> leave target_states empty, mention in notes.
+3. GEOGRAPHY:
+   - Two-letter uppercase state codes only.
+   - "US" / "United States" / "National" -> empty target_states array.
+   - "Southeast" -> expand to the states normally considered part of that region.
+   - Non-US geography -> leave empty and mention in notes.
 
-5. INDUSTRY KEYWORDS SHOULD BE SPECIFIC.
-   - "Services" is too broad.
-   - "Residential HVAC (Apex)" thesis → keywords: ["residential hvac", "hvac", "heating", "cooling", "air conditioning", "residential plumbing", "plumbing", "residential electrical", "electrical"].
-   - Always include the sub-industries/services listed in the source doc as keywords.
+4. INDUSTRY KEYWORDS SHOULD BE SPECIFIC. "Services" is too broad; "mechanical contractor" is good. Include sub-industries, technical services, and customer-segment qualifiers.
 
-6. EXCLUDED KEYWORDS: if the document explicitly says "NOT", "exclude", "pass on", "avoid", or "<X% new construction" capping a sub-service, surface the excluded items in the notes field so reviewers can add them to excluded_keywords.
-
-7. DO NOT INVENT FIELDS. If the document says nothing about EBITDA, leave ebitda_min and ebitda_max as null. Reviewers can fill in gaps manually — silent guesses are worse than missing data.
-
-8. IGNORE DEAL-SPECIFIC CONTENT. This document may also mention specific companies or deals in passing. Focus strictly on the buyer's general acquisition thesis.
-
-9. CONFIDENCE SCORING per row.
+5. CONFIDENCE SCORING:
    - 90-100: Thesis explicitly stated with specific numeric ranges and clear industry language.
    - 70-89: Clearly stated but one or two fields inferred.
-   - 50-69: Partial — stitching together hints.
+   - 50-69: Partial — you're stitching together hints.
    - Below 50: Mostly inferred, flag for reviewer.
 
-10. SOURCE EXCERPTS: For each thesis row, include a short quote (~1 sentence, max 200 chars) from the document that a human can verify at a glance.
+6. DO NOT INVENT FIELDS. If the document says nothing about EBITDA, leave ebitda_min and ebitda_max as null. Reviewers can fill in gaps manually — silent guesses are worse than missing data.
 
-## WORKED EXAMPLE
+7. IGNORE DEAL-SPECIFIC CONTENT. This document may be a transcript or memo that also discusses specific companies or deals in passing. Focus strictly on the buyer's general acquisition thesis, not on individual targets.
 
-Given this input snippet:
+8. SOURCE EXCERPTS: For each thesis row, include a short quote (~1 sentence) from the document that a human can verify at a glance.`;
 
-    RESIDENTIAL SERVICES
-    - Residential HVAC / Plumbing / Electrical (Apex)
-    - Size: $2.5m+ revenue
-    - Service mix: <20% new construction
-    - Customers: 70%+ residential
-    - Geo: US
-    - Residential Restoration (Guardian)
-    - Size: $5m+ revenue
-    - Customers: 50%+ residential
-    - Geos: US
-
-You should produce TWO thesis rows (not one), roughly:
-
-    [
-      {
-        "industry_label": "Residential HVAC / Plumbing / Electrical (Apex)",
-        "industry_keywords": ["residential hvac", "hvac", "heating", "cooling", "air conditioning", "residential plumbing", "plumbing", "residential electrical", "electrical"],
-        "revenue_min": 2500000,
-        "target_states": [],
-        "notes": "Residential focus. <20% new construction. 70%+ residential customers. Portco: Apex.",
-        "confidence": 92,
-        "source_excerpt": "Residential HVAC / Plumbing / Electrical (Apex) | Size: $2.5m+ revenue | <20% new construction | 70%+ residential"
-      },
-      {
-        "industry_label": "Residential Restoration (Guardian)",
-        "industry_keywords": ["residential restoration", "fire damage", "water damage", "mold remediation", "reconstruction"],
-        "revenue_min": 5000000,
-        "target_states": [],
-        "notes": "40%+ fire/water emergency mitigation. 50%+ residential. Portco: Guardian.",
-        "confidence": 90,
-        "source_excerpt": "Residential Restoration (Guardian) | Size: $5m+ revenue | 40%+ fire/water emergency mitigation"
-      }
-    ]
-
-Failing to split these into two rows is a critical extraction error.`;
-
-  const userPrompt = `Extract EVERY distinct investment thesis from the following intelligence document.
+  const userPrompt = `Extract the buyer's investment thesis from the following intelligence document.
 
 Document title: "${docTitle}"
 Document type: ${docType}
 
-Optimize for RECALL — it is far better to return 25 thesis rows that get deduped by reviewers than to return 3 merged rows that lose specificity. Walk through the document section by section; extract one row per bulleted vertical / portco / platform.`;
+Produce one or more thesis rows suitable for saving to a portal_thesis_criteria table. Reviewers will see your output in a checklist before anything is persisted, so optimize for precision over recall.`;
 
   return { systemPrompt, userPrompt };
 }
@@ -386,13 +323,9 @@ async function runExtraction(
         tools: [THESIS_TOOL],
         tool_choice: { type: 'function', function: { name: THESIS_TOOL.function.name } },
         temperature: 0,
-        // 32k output budget. A dense PE thesis doc (e.g. Alpine's 19-vertical
-        // structured bullet list) produces ~7-8k tokens of JSON; the prior 8k
-        // cap was truncating mid-extraction and the reviewer only saw the
-        // first few rows.
-        max_tokens: 32768,
+        max_tokens: 8192,
       },
-      180_000,
+      120_000,
       'Gemini/portal-thesis',
     );
 
@@ -429,8 +362,8 @@ async function runExtraction(
 
   // Text path — either the raw file text, the inline `content` column, or both.
   const textParts: string[] = [];
-  if (content.text) textParts.push(`FILE CONTENT:\n${content.text.slice(0, 80_000)}`);
-  if (inlineContent) textParts.push(`INLINE NOTES:\n${inlineContent.slice(0, 40_000)}`);
+  if (content.text) textParts.push(`FILE CONTENT:\n${content.text.slice(0, 40_000)}`);
+  if (inlineContent) textParts.push(`INLINE NOTES:\n${inlineContent.slice(0, 10_000)}`);
   const combinedText = textParts.join('\n\n---\n\n');
 
   if (!combinedText.trim()) {
@@ -447,8 +380,8 @@ async function runExtraction(
     THESIS_TOOL,
     geminiApiKey,
     DEFAULT_GEMINI_MODEL,
-    180_000,
-    32768,
+    60_000,
+    8192,
   );
 
   if (result.usage) {

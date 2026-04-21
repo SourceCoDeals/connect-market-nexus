@@ -32,8 +32,7 @@ export const WeeklyChart = ({ weeklyData }: WeeklyChartProps) => {
   const chartH = H - PT - PB;
 
   const points = values.map((v, i) => ({
-    // Center a single-point chart instead of plotting at x=0.
-    x: PL + (values.length > 1 ? i / (values.length - 1) : 0.5) * chartW,
+    x: PL + (i / (values.length - 1 || 1)) * chartW,
     y: PT + chartH - (v / max) * chartH,
     v,
   }));
@@ -52,9 +51,7 @@ export const WeeklyChart = ({ weeklyData }: WeeklyChartProps) => {
         <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
           Opportunities Added to Active Opportunities
         </h3>
-        <span className="text-xs text-gray-400">
-          {total} total ({weeks.length} {weeks.length === 1 ? 'week' : 'weeks'})
-        </span>
+        <span className="text-xs text-gray-400">{total} total (8 weeks)</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
         <defs>

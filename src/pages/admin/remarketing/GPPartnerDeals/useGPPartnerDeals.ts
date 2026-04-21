@@ -65,13 +65,13 @@ export function useGPPartnerDeals() {
   );
 
   // URL-persisted filter state (survives browser Back navigation)
-  const hidePushed = searchParams.get('hidePushed') !== '0'; // hidden by default
+  const hidePushed = searchParams.get('hidePushed') === '1';
   const setHidePushed = useCallback(
     (v: boolean) => {
       setSearchParams(
         (p) => {
           const n = new URLSearchParams(p);
-          if (!v) n.set('hidePushed', '0');
+          if (v) n.set('hidePushed', '1');
           else n.delete('hidePushed');
           n.delete('cp');
           return n;
@@ -679,7 +679,10 @@ export function useGPPartnerDeals() {
         contact_phone: { column: 'main_contact_phone', value: nd.contact_phone.trim() || null },
         contact_title: { column: 'main_contact_title', value: nd.contact_title.trim() || null },
         industry: { column: 'industry', value: nd.industry.trim() || null },
-        executive_summary: { column: 'executive_summary', value: nd.executive_summary.trim() || null },
+        executive_summary: {
+          column: 'executive_summary',
+          value: nd.executive_summary.trim() || null,
+        },
         location: { column: 'location', value: nd.location.trim() || null },
         revenue: { column: 'revenue', value: nd.revenue ? parseFloat(nd.revenue) : null },
         ebitda: { column: 'ebitda', value: nd.ebitda ? parseFloat(nd.ebitda) : null },

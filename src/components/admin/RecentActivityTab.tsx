@@ -14,12 +14,11 @@ import { useState } from 'react';
 import { useRecentActivity } from '@/hooks/use-recent-activity';
 import { useFilterEngine } from '@/hooks/use-filter-engine';
 import { FilterBar, ACTIVITY_FIELDS } from '@/components/filters';
-import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 export function RecentActivityTab() {
   const [limit, setLimit] = useState(50);
 
-  const { data: activities = [], isLoading, refetch, error } = useRecentActivity(limit);
+  const { data: activities = [], isLoading, refetch } = useRecentActivity(limit);
 
   const {
     filteredItems: filteredActivities,
@@ -73,16 +72,6 @@ export function RecentActivityTab() {
     },
     {} as Record<string, number>,
   );
-
-  if (error) {
-    return (
-      <DashboardErrorBanner
-        title="Couldn't load recent activity"
-        error={error as Error}
-        onRetry={() => refetch()}
-      />
-    );
-  }
 
   if (isLoading) {
     return (

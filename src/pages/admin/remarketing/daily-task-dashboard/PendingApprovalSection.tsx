@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 import { PersonTaskGroup } from './PersonTaskGroup';
 import type { TaskGroup, TaskHandlers } from './types';
@@ -17,18 +17,6 @@ interface PendingApprovalSectionProps {
   taskHandlers: TaskHandlers;
 }
 
-// A task "stales" after this many days waiting in pending_approval. There is
-// no cron auto-escalation yet, so at minimum we make the stale backlog
-// visible to leadership on the dashboard.
-const STALE_PENDING_APPROVAL_DAYS = 7;
-
-function daysSince(iso: string | null | undefined): number | null {
-  if (!iso) return null;
-  const ms = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return null;
-  return Math.floor(ms / (1000 * 60 * 60 * 24));
-}
-
 export function PendingApprovalSection({
   pendingApprovalTasks,
   pendingApprovalGroups,
@@ -42,11 +30,6 @@ export function PendingApprovalSection({
 }: PendingApprovalSectionProps) {
   if (pendingApprovalTasks.length === 0) return null;
 
-  const staleCount = pendingApprovalTasks.filter((t) => {
-    const days = daysSince(t.created_at);
-    return days !== null && days >= STALE_PENDING_APPROVAL_DAYS;
-  }).length;
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -56,16 +39,6 @@ export function PendingApprovalSection({
           <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px]">
             {pendingApprovalTasks.length} tasks
           </Badge>
-          {staleCount > 0 && (
-            <Badge
-              variant="outline"
-              className="border-red-300 bg-red-50 text-red-700 text-[10px] flex items-center gap-1"
-              title={`${staleCount} task${staleCount === 1 ? '' : 's'} have been awaiting approval for ${STALE_PENDING_APPROVAL_DAYS}+ days`}
-            >
-              <AlertTriangle className="h-3 w-3" />
-              {staleCount} stale
-            </Badge>
-          )}
         </div>
         {isLeadership && (
           <Button size="sm" onClick={onApproveAll} disabled={isApprovingAll} className="gap-1.5">

@@ -72,7 +72,7 @@ export default function SmartleadResponsesList() {
   const [isReclassifying, setIsReclassifying] = useState(false);
   const navigate = useNavigate();
 
-  const { items, stats, isLoading, refetch } = useSmartleadInbox(filter, search);
+  const { items, stats, isLoading, refetch } = useSmartleadInbox(filter, search, 'gp_only');
   useSmartleadInboxRealtime();
   const updateStatus = useUpdateInboxStatus();
 
@@ -97,7 +97,9 @@ export default function SmartleadResponsesList() {
         refetch();
       }
     } catch (err) {
-      toast.error(`Reclassification failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(
+        `Reclassification failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      );
     } finally {
       setIsReclassifying(false);
     }

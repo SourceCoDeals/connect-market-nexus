@@ -34,8 +34,6 @@ import {
   X,
   UserPlus,
   AlarmClock,
-  List,
-  GitBranch,
 } from 'lucide-react';
 import { useEntityTasks } from '@/hooks/useEntityTasks';
 import { useDeleteTask } from '@/hooks/useDailyTasks';
@@ -49,7 +47,6 @@ import { ReassignDialog } from './ReassignDialog';
 import { PinDialog } from './PinDialog';
 import { EntityAddTaskDialog } from './EntityAddTaskDialog';
 import { TaskTemplateDialog } from './TaskTemplateDialog';
-import { TaskDependencyView } from './TaskDependencyView';
 import type { DailyStandupTaskWithRelations, TaskEntityType } from '@/types/daily-tasks';
 
 interface EntityTasksTabProps {
@@ -82,7 +79,6 @@ export function EntityTasksTab({
   const primaryEntityType: TaskEntityType = Array.isArray(entityType) ? entityType[0] : entityType;
 
   const [showCompleted, setShowCompleted] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'dependencies'>('list');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [editTask, setEditTask] = useState<DailyStandupTaskWithRelations | null>(null);
@@ -177,31 +173,6 @@ export function EntityTasksTab({
     [tasks],
   );
 
-  // Compute which tasks are blocked by unresolved prerequisites.
-  // A task is blocked when at least one ID in its `depends_on` list refers to
-  // a task that is not yet completed. depends_on stores a comma-separated
-  // list of task UUIDs (matching TaskDependencyView's existing parsing).
-  const blockedIds = useMemo(() => {
-    const completedSet = new Set(
-      (tasks || []).filter((t) => t.status === 'completed').map((t) => t.id),
-    );
-    const blocked = new Set<string>();
-    for (const t of tasks || []) {
-      if (!t.depends_on) continue;
-      const deps = t.depends_on
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (deps.some((id) => !completedSet.has(id))) {
-        blocked.add(t.id);
-      }
-    }
-    return blocked;
-  }, [tasks]);
-
-  // Dependency view only meaningful on deal-scoped task tabs.
-  const showDependencyToggle = primaryEntityType === 'deal';
-
   const handleDelete = async () => {
     if (!deleteTaskTarget) return;
     try {
@@ -235,32 +206,6 @@ export function EntityTasksTab({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {showDependencyToggle && (
-            <div className="inline-flex rounded-md border p-0.5">
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="h-6 px-2 text-xs"
-                aria-pressed={viewMode === 'list'}
-                title="List view"
-              >
-                <List className="h-3 w-3 mr-1" />
-                List
-              </Button>
-              <Button
-                variant={viewMode === 'dependencies' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('dependencies')}
-                className="h-6 px-2 text-xs"
-                aria-pressed={viewMode === 'dependencies'}
-                title="Dependency view"
-              >
-                <GitBranch className="h-3 w-3 mr-1" />
-                Dependencies
-              </Button>
-            </div>
-          )}
           <Button
             variant="ghost"
             size="sm"
@@ -313,12 +258,8 @@ export function EntityTasksTab({
         </div>
       </div>
 
-      {/* Dependency view — alternative to list, deal-only. */}
-      {viewMode === 'dependencies' && primaryEntityType === 'deal' ? (
-        <div className="rounded-lg border p-3">
-          <TaskDependencyView dealId={entityId} />
-        </div>
-      ) : isLoading ? (
+      {/* Task list */}
+      {isLoading ? (
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-12 w-full rounded-lg" />
@@ -405,7 +346,6 @@ export function EntityTasksTab({
                     onReassign={setReassignTask}
                     onPin={setPinTask}
                     onDelete={setDeleteTaskTarget}
-                    blocked={blockedIds.has(task.id)}
                   />
                   {/* Overlay badges for auto-generated and recurrence */}
                   <div className="absolute top-1.5 right-12 flex items-center gap-1">

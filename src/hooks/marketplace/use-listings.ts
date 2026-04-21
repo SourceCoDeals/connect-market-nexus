@@ -308,7 +308,7 @@ export const useListing = (id: string | undefined) => {
         const listing = {
           ...d,
           categories: d.categories || (d.category ? [d.category] : []),
-          metric_3_type: 'custom' as const,
+          metric_3_type: (d.metric_3_type as 'employees' | 'custom') || 'employees',
           ownerNotes: d.owner_notes || '',
           createdAt: d.created_at,
           updatedAt: d.updated_at,

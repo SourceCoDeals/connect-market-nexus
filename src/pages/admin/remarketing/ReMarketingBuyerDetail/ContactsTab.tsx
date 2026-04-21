@@ -113,145 +113,110 @@ export const ContactsTab = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {contacts?.map((contact) => {
-                const isAutoDetected =
-                  contact.source === 'outlook_auto_detected' ||
-                  contact.source === 'smartlead_auto_detected';
-                return (
-                  <TableRow
-                    key={contact.id}
-                    className={
-                      isAutoDetected
-                        ? 'border-l-2 border-l-amber-400 bg-amber-50/40 dark:bg-amber-950/10'
-                        : undefined
-                    }
-                  >
-                    <TableCell className="font-medium">
-                      {contact.name}
-                      {contact.is_primary && (
-                        <Badge variant="secondary" className="ml-2">
-                          Primary
-                        </Badge>
+              {contacts?.map((contact) => (
+                <TableRow key={contact.id}>
+                  <TableCell className="font-medium">
+                    {contact.name}
+                    {contact.is_primary && (
+                      <Badge variant="secondary" className="ml-2">
+                        Primary
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>{contact.role || '\u2014'}</TableCell>
+                  <TableCell>
+                    {contact.email ? (
+                      <a
+                        href={`mailto:${contact.email}`}
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <Mail className="h-3 w-3" />
+                        {contact.email}
+                      </a>
+                    ) : (
+                      '\u2014'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      {contact.mobile_phone_1 ? (
+                        <ClickToDialPhone
+                          phone={contact.mobile_phone_1}
+                          name={contact.name || undefined}
+                          email={contact.email || undefined}
+                          size="sm"
+                        />
+                      ) : contact.phone ? (
+                        <ClickToDialPhone
+                          phone={contact.phone}
+                          name={contact.name || undefined}
+                          email={contact.email || undefined}
+                          size="sm"
+                        />
+                      ) : null}
+                      {contact.mobile_phone_2 && (
+                        <ClickToDialPhone
+                          phone={contact.mobile_phone_2}
+                          name={contact.name || undefined}
+                          email={contact.email || undefined}
+                          size="sm"
+                        />
                       )}
-                      {isAutoDetected && (
-                        <Badge
-                          variant="outline"
-                          className="ml-2 border-amber-400 text-amber-800 bg-amber-50 dark:text-amber-200 dark:bg-amber-950/20"
-                          title={
-                            contact.source === 'outlook_auto_detected'
-                              ? "Auto-created from an Outlook email at this firm's domain"
-                              : "Auto-created from a SmartLead reply at this firm's domain"
-                          }
-                        >
-                          Needs Review
-                        </Badge>
+                      {contact.office_phone && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Building2 className="h-3 w-3" />
+                          {contact.office_phone}
+                        </span>
                       )}
-                    </TableCell>
-                    <TableCell>{contact.role || '\u2014'}</TableCell>
-                    <TableCell>
-                      {contact.email ? (
-                        <a
-                          href={`mailto:${contact.email}`}
-                          className="flex items-center gap-1 text-primary hover:underline"
-                        >
-                          <Mail className="h-3 w-3" />
-                          {contact.email}
-                        </a>
-                      ) : (
-                        '\u2014'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        {contact.mobile_phone_1 ? (
-                          <ClickToDialPhone
-                            phone={contact.mobile_phone_1}
-                            name={contact.name || undefined}
-                            email={contact.email || undefined}
-                            size="sm"
-                          />
-                        ) : contact.phone ? (
-                          <ClickToDialPhone
-                            phone={contact.phone}
-                            name={contact.name || undefined}
-                            email={contact.email || undefined}
-                            size="sm"
-                          />
-                        ) : null}
-                        {contact.mobile_phone_2 && (
-                          <ClickToDialPhone
-                            phone={contact.mobile_phone_2}
-                            name={contact.name || undefined}
-                            email={contact.email || undefined}
-                            size="sm"
-                          />
-                        )}
-                        {contact.mobile_phone_3 && (
-                          <ClickToDialPhone
-                            phone={contact.mobile_phone_3}
-                            name={contact.name || undefined}
-                            email={contact.email || undefined}
-                            size="sm"
-                          />
-                        )}
-                        {contact.office_phone && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Building2 className="h-3 w-3" />
-                            {contact.office_phone}
-                          </span>
-                        )}
-                        {!contact.mobile_phone_1 &&
-                          !contact.mobile_phone_2 &&
-                          !contact.mobile_phone_3 &&
-                          !contact.phone &&
-                          !contact.office_phone &&
-                          '\u2014'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {contact.linkedin_url ? (
-                        <a
-                          href={contact.linkedin_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-primary hover:underline"
-                        >
-                          <Linkedin className="h-3 w-3" />
-                          Profile
-                        </a>
-                      ) : (
-                        '\u2014'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {onEditContact && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => onEditContact(contact)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
+                      {!contact.mobile_phone_1 &&
+                        !contact.phone &&
+                        !contact.office_phone &&
+                        '\u2014'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {contact.linkedin_url ? (
+                      <a
+                        href={contact.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <Linkedin className="h-3 w-3" />
+                        Profile
+                      </a>
+                    ) : (
+                      '\u2014'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {onEditContact && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => {
-                            if (confirm('Delete this contact?')) {
-                              onDeleteContact(contact.id);
-                            }
-                          }}
+                          className="h-8 w-8"
+                          onClick={() => onEditContact(contact)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => {
+                          if (confirm('Delete this contact?')) {
+                            onDeleteContact(contact.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}

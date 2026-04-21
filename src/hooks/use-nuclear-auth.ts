@@ -34,7 +34,27 @@ export function useNuclearAuth() {
             data: { session },
           } = await supabase.auth.getSession();
           if (session?.user) {
-            profile = (await selfHealProfile(session.user)) as typeof fetchedProfile;
+            try {
+              profile = (await selfHealProfile(session.user)) as typeof fetchedProfile;
+            } catch (healErr) {
+              console.error(
+                '[use-nuclear-auth] selfHealProfile failed, trying minimal RPC:',
+                healErr,
+              );
+              // Last resort: use the minimal RPC
+              try {
+                const { ensureMinimalProfile } = await import('@/lib/profile-self-heal');
+                await ensureMinimalProfile();
+                const { data: minProfile } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', sessionUserId)
+                  .single();
+                profile = minProfile;
+              } catch (rpcErr) {
+                console.error('[use-nuclear-auth] Minimal profile RPC also failed:', rpcErr);
+              }
+            }
           }
         }
 
@@ -109,10 +129,7 @@ export function useNuclearAuth() {
           if (isMounted) loadProfile(session.user.id);
         }, 0);
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        // CTO audit H9: the MFA gate (useAdminMFAStatus) subscribes to the
-        // same auth state changes and re-runs getAuthenticatorAssuranceLevel
-        // on TOKEN_REFRESHED, so a silent AAL1 downgrade no longer slips
-        // past the admin route. Here we just refresh the profile like before.
+        // Silently refresh profile on token refresh
         setTimeout(() => {
           if (isMounted) loadProfile(session.user.id);
         }, 0);
@@ -135,34 +152,8 @@ export function useNuclearAuth() {
           setUser(null);
         }
       } catch (error) {
-        // CTO audit H10: distinguish "no session" from "revoked / expired
-        // refresh token". Previously a REFRESH_TOKEN_FAILED or INVALID_GRANT
-        // silently left the user in a stale authenticated state. Now we
-        // recognize those specific codes, clear any leftover local auth
-        // state, and redirect to login with a hint so the user understands
-        // why they were bounced.
         console.error('Session check error:', error);
         if (isMounted) setUser(null);
-        const code =
-          (error as { code?: string; message?: string } | null)?.code ||
-          (error as { message?: string } | null)?.message ||
-          '';
-        const refreshFailed =
-          code === 'refresh_token_not_found' ||
-          code === 'refresh_token_already_used' ||
-          code === 'invalid_grant' ||
-          /refresh.*token/i.test(code);
-        if (refreshFailed && typeof window !== 'undefined') {
-          try {
-            const { cleanupAuthState } = await import('@/lib/auth-cleanup');
-            cleanupAuthState();
-          } catch {
-            /* best-effort */
-          }
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login?session_expired=1';
-          }
-        }
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -246,6 +237,8 @@ export function useNuclearAuth() {
 
     // After successful signup, hydrate the full buyer profile directly on the profiles table.
     // This avoids stuffing 85+ fields into auth metadata which can hit payload limits.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let extendedProfilePromise: any = null;
     if (!error && data.user) {
       const extendedProfile: Record<string, unknown> = {
         ideal_target_description: userData.ideal_target_description || '',
@@ -301,16 +294,16 @@ export function useNuclearAuth() {
           ? standardizeCategories(userData.industry_expertise)
           : [],
         deal_structure_preference: userData.deal_structure_preference || '',
-        permanent_capital: userData.permanent_capital || null,
+        permanent_capital: userData.permanent_capital ?? null,
         operating_company_targets: Array.isArray(userData.operating_company_targets)
           ? userData.operating_company_targets
           : [],
-        flex_subxm_ebitda: userData.flex_subxm_ebitda || null,
+        flex_subxm_ebitda: userData.flex_subxm_ebitda ?? null,
         search_type: userData.search_type || '',
         acq_equity_band: userData.acq_equity_band || '',
         financing_plan: Array.isArray(userData.financing_plan) ? userData.financing_plan : [],
         search_stage: userData.search_stage || '',
-        flex_sub2m_ebitda: userData.flex_sub2m_ebitda || null,
+        flex_sub2m_ebitda: userData.flex_sub2m_ebitda ?? null,
         on_behalf_of_buyer: userData.on_behalf_of_buyer || '',
         buyer_role: userData.buyer_role || '',
         buyer_org_url: userData.buyer_org_url || '',
@@ -345,14 +338,28 @@ export function useNuclearAuth() {
         target_acquisition_volume: userData.target_acquisition_volume || '',
       };
 
-      // Write extended profile fields — non-blocking, profile trigger already created the row
+      // Write extended profile fields via SECURITY DEFINER RPC (bypasses RLS pre-verification)
+      // Step 1: Save ALL extended fields via save_extended_profile (works without session)
+      // IMPORTANT: This promise is awaited below in Promise.allSettled to prevent
+      // the browser from navigating away before the request completes
+      extendedProfilePromise = supabase
+        .rpc('save_extended_profile', {
+          p_user_id: data.user.id,
+          p_data: extendedProfile as any,
+        })
+        .then(({ error: extErr }) => {
+          if (extErr) {
+            console.warn('save_extended_profile RPC failed:', extErr);
+          }
+        });
+
+      // Step 2: Also hydrate core fields from auth metadata as a safety net
       supabase
-        .from('profiles')
-        .update(extendedProfile)
-        .eq('id', data.user.id)
-        .then(({ error: profileErr }) => {
-          if (profileErr)
-            console.warn('Extended profile hydration failed (non-critical):', profileErr);
+        .rpc('hydrate_profile_from_metadata', { p_user_id: data.user.id })
+        .then(({ error: rpcErr }) => {
+          if (rpcErr) {
+            console.warn('hydrate_profile_from_metadata RPC failed (non-critical):', rpcErr);
+          }
         });
     }
 
@@ -418,7 +425,13 @@ export function useNuclearAuth() {
           console.warn('Buyer scoring failed (will be scored later):', err);
         });
 
-      await Promise.allSettled([adminNotificationPromise, firmCreationPromise, scoringPromise]);
+      const allPromises: Promise<any>[] = [
+        adminNotificationPromise,
+        firmCreationPromise,
+        scoringPromise,
+      ];
+      if (extendedProfilePromise) allPromises.push(extendedProfilePromise);
+      await Promise.allSettled(allPromises);
     }
   }, []);
 
@@ -498,14 +511,38 @@ export function useNuclearAuth() {
       data: { session },
       error: sessionError,
     } = await supabase.auth.getSession();
-    if (sessionError) throw sessionError;
+    if (sessionError) {
+      console.error('[use-nuclear-auth] refreshUserProfile session error:', sessionError);
+      return;
+    }
     if (session?.user) {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.warn(
+          '[use-nuclear-auth] refreshUserProfile fetch failed, attempting repair:',
+          profileError.message,
+        );
+        try {
+          const { ensureMinimalProfile } = await import('@/lib/profile-self-heal');
+          await ensureMinimalProfile();
+          const { data: repairedProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          if (repairedProfile) {
+            const updatedUser = createUserObject(repairedProfile);
+            setUser(updatedUser);
+          }
+        } catch (repairErr) {
+          console.error('[use-nuclear-auth] refreshUserProfile repair failed:', repairErr);
+        }
+        return;
+      }
       if (profile) {
         const updatedUser = createUserObject(profile);
         setUser(updatedUser);

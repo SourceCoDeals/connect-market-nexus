@@ -68,7 +68,7 @@ export async function findIntroductionContacts(
           .eq('id', buyerId)
           .maybeSingle();
 
-        console.warn(
+        console.log(
           `[findIntroductionContacts] Skipping discovery for buyer=${buyerId} — already has ${totalCount ?? 0} recent contacts`,
         );
 

@@ -118,24 +118,8 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
 
   const Icon = iconConfig.icon;
 
-  const meetingKeyPoints = Array.isArray(entry.details.key_points)
-    ? (entry.details.key_points as string[])
-    : null;
-  const meetingActionItems = Array.isArray(entry.details.action_items)
-    ? (entry.details.action_items as string[])
-    : null;
-  const meetingSummary =
-    isMeeting && typeof entry.details.call_outcome === 'string' ? entry.details.call_outcome : null;
-  const hasMeetingExpandable =
-    isMeeting &&
-    ((meetingKeyPoints && meetingKeyPoints.length > 0) ||
-      (meetingActionItems && meetingActionItems.length > 0) ||
-      !!meetingSummary ||
-      !!entry.details.transcript_url);
-
   const hasExpandableContent =
-    (isCall && (entry.details.call_transcript || entry.details.contact_notes)) ||
-    hasMeetingExpandable;
+    isCall && (entry.details.call_transcript || entry.details.contact_notes);
 
   return (
     <div className="flex items-start gap-3 py-2.5 px-2 rounded-md hover:bg-muted/50 transition-colors">
@@ -152,37 +136,10 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
           <span className="text-sm font-medium">{entry.label}</span>
           <Badge
             variant="outline"
-            className={`text-[10px] ${
-              isLinkedIn
-                ? 'border-blue-300 text-blue-800'
-                : isEmail
-                  ? 'border-blue-200 text-blue-700'
-                  : isMeeting
-                    ? 'border-purple-200 text-purple-700'
-                    : 'border-green-200 text-green-700'
-            }`}
+            className={`text-[10px] ${isLinkedIn ? 'border-blue-300 text-blue-800' : isEmail ? 'border-blue-200 text-blue-700' : 'border-green-200 text-green-700'}`}
           >
-            {isLinkedIn ? 'LinkedIn' : isEmail ? 'Email' : isMeeting ? 'Meeting' : 'Call'}
+            {isLinkedIn ? 'LinkedIn' : isEmail ? 'Email' : 'Call'}
           </Badge>
-          {/* Meeting duration */}
-          {isMeeting && entry.details.duration_minutes ? (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {entry.details.duration_minutes}m
-            </span>
-          ) : null}
-          {/* Meeting transcript link */}
-          {isMeeting && entry.details.transcript_url ? (
-            <a
-              href={entry.details.transcript_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary hover:underline flex items-center gap-1"
-            >
-              <FileText className="h-3 w-3" />
-              Transcript
-            </a>
-          ) : null}
           {/* Call disposition */}
           {isCall && (entry.details.disposition_label || entry.details.phoneburner_status) && (
             <Badge
@@ -256,11 +213,7 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
               <ChevronDown
                 className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`}
               />
-              {expanded
-                ? 'Hide details'
-                : isMeeting
-                  ? 'Show meeting details'
-                  : 'Show transcript & notes'}
+              {expanded ? 'Hide details' : 'Show transcript & notes'}
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 space-y-2">
               {entry.details.call_transcript && (
@@ -273,32 +226,6 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
                 <div className="rounded-md bg-muted/50 p-3 text-xs text-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">
                   <p className="font-medium text-muted-foreground mb-1">Contact Notes</p>
                   {entry.details.contact_notes}
-                </div>
-              )}
-              {isMeeting && meetingSummary && (
-                <div className="rounded-md bg-muted/50 p-3 text-xs text-foreground whitespace-pre-wrap max-h-48 overflow-y-auto">
-                  <p className="font-medium text-muted-foreground mb-1">Summary</p>
-                  {meetingSummary}
-                </div>
-              )}
-              {isMeeting && meetingKeyPoints && meetingKeyPoints.length > 0 && (
-                <div className="rounded-md bg-muted/50 p-3 text-xs text-foreground max-h-48 overflow-y-auto">
-                  <p className="font-medium text-muted-foreground mb-1">Key Points</p>
-                  <ul className="list-disc ml-4 space-y-0.5">
-                    {meetingKeyPoints.map((kp, i) => (
-                      <li key={i}>{kp}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {isMeeting && meetingActionItems && meetingActionItems.length > 0 && (
-                <div className="rounded-md bg-muted/50 p-3 text-xs text-foreground max-h-48 overflow-y-auto">
-                  <p className="font-medium text-muted-foreground mb-1">Action Items</p>
-                  <ul className="list-disc ml-4 space-y-0.5">
-                    {meetingActionItems.map((ai, i) => (
-                      <li key={i}>{ai}</li>
-                    ))}
-                  </ul>
                 </div>
               )}
             </CollapsibleContent>
@@ -400,20 +327,8 @@ function TimelineCard({
   showDateFilter?: boolean;
 }) {
   const [dateRange, setDateRange] = useState<DateRangeValue>('all');
-  // Optional channel filter. Clicking a badge toggles to that channel;
-  // clicking the same badge again clears back to "all". Stats are always
-  // computed against the date-filtered set so counts on badges stay accurate
-  // after a channel filter is active.
-  const [channelFilter, setChannelFilter] = useState<
-    'email' | 'call' | 'linkedin' | 'meeting' | null
-  >(null);
-  const dateFiltered = showDateFilter ? filterByDateRange(entries, dateRange) : entries;
-  const stats = useActivityStats(dateFiltered);
-  const filtered = channelFilter
-    ? dateFiltered.filter((e) => e.channel === channelFilter)
-    : dateFiltered;
-  const toggleChannel = (c: 'email' | 'call' | 'linkedin' | 'meeting') =>
-    setChannelFilter((prev) => (prev === c ? null : c));
+  const filtered = showDateFilter ? filterByDateRange(entries, dateRange) : entries;
+  const stats = useActivityStats(filtered);
 
   if (isLoading) {
     return (
@@ -479,58 +394,29 @@ function TimelineCard({
                 ))}
               </div>
             )}
-            {/* Badges double as channel filters — click to toggle. The
-                outlined variant highlights the active filter so it's obvious
-                which channel is selected. */}
             {stats.totalEmails > 0 && (
-              <Badge
-                variant={channelFilter === 'email' ? 'default' : 'outline'}
-                className="text-xs border-blue-200 text-blue-700 cursor-pointer"
-                onClick={() => toggleChannel('email')}
-              >
+              <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
                 <Mail className="h-3 w-3 mr-1" />
                 {stats.totalEmails} email{stats.totalEmails !== 1 ? 's' : ''}
               </Badge>
             )}
             {stats.totalCalls > 0 && (
-              <Badge
-                variant={channelFilter === 'call' ? 'default' : 'outline'}
-                className="text-xs border-green-200 text-green-700 cursor-pointer"
-                onClick={() => toggleChannel('call')}
-              >
+              <Badge variant="outline" className="text-xs border-green-200 text-green-700">
                 <Phone className="h-3 w-3 mr-1" />
                 {stats.totalCalls} call{stats.totalCalls !== 1 ? 's' : ''}
               </Badge>
             )}
             {stats.totalLinkedIn > 0 && (
-              <Badge
-                variant={channelFilter === 'linkedin' ? 'default' : 'outline'}
-                className="text-xs border-blue-300 text-blue-800 cursor-pointer"
-                onClick={() => toggleChannel('linkedin')}
-              >
+              <Badge variant="outline" className="text-xs border-blue-300 text-blue-800">
                 <Linkedin className="h-3 w-3 mr-1" />
                 {stats.totalLinkedIn} LinkedIn
               </Badge>
             )}
             {stats.totalMeetings > 0 && (
-              <Badge
-                variant={channelFilter === 'meeting' ? 'default' : 'outline'}
-                className="text-xs border-purple-200 text-purple-700 cursor-pointer"
-                onClick={() => toggleChannel('meeting')}
-              >
+              <Badge variant="outline" className="text-xs border-purple-200 text-purple-700">
                 <Video className="h-3 w-3 mr-1" />
                 {stats.totalMeetings} meeting{stats.totalMeetings !== 1 ? 's' : ''}
               </Badge>
-            )}
-            {channelFilter && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                onClick={() => setChannelFilter(null)}
-              >
-                Clear
-              </Button>
             )}
           </div>
         </div>

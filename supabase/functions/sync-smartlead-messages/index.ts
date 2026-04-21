@@ -223,7 +223,7 @@ async function syncCampaign(
   // Load sync state (high-water mark) for this campaign
   const { data: stateRow } = await supabase
     .from('outreach_sync_state')
-    .select('last_synced_at, last_synced_message_id, messages_synced_total')
+    .select('last_synced_at, last_synced_message_id')
     .eq('channel', 'smartlead')
     .eq('external_campaign_id', campaign.smartlead_campaign_id)
     .maybeSingle();
@@ -345,28 +345,10 @@ async function syncCampaign(
     offset += PAGE_SIZE;
   }
 
-  // Update sync state on success.
-  //
-  // last_synced_at semantics: "high-water mark of activity we have ingested".
-  // Three cases:
-  //   1. We observed new activity → advance to latestActivityAt (the canonical case).
-  //   2. We saw zero new activity but sync ran to completion → still advance,
-  //      using sync-start-time minus a 5-minute clock-skew buffer. Without this,
-  //      first-run campaigns (or campaigns whose leads have no updated_at field)
-  //      stay at last_synced_at=NULL forever and monitoring can't distinguish
-  //      "never synced" from "successfully synced nothing".
-  //   3. lastSyncedAt is already further ahead than latestActivityAt (shouldn't
-  //      happen, but don't move backwards).
-  const bufferMs = 5 * 60 * 1000;
-  const completionWatermark = new Date(startedAt - bufferMs);
-  let newWatermark: Date | null = null;
-  if (latestActivityAt && (!lastSyncedAt || latestActivityAt > lastSyncedAt)) {
-    newWatermark = latestActivityAt;
-  } else if (!lastSyncedAt) {
-    // First successful sync with no observed activity → bootstrap watermark.
-    newWatermark = completionWatermark;
-  }
-
+  // Update sync state on success. CRITICAL: only advance last_synced_at when
+  // we actually observed new activity. If latestActivityAt is null (zero new
+  // leads or leads with no timestamp field), preserve the existing watermark
+  // to avoid silently skipping records on the next run.
   const syncStateUpdate: Record<string, unknown> = {
     channel: 'smartlead',
     external_campaign_id: campaign.smartlead_campaign_id,
@@ -377,8 +359,8 @@ async function syncCampaign(
       ((stateRow as { messages_synced_total?: number } | null)?.messages_synced_total || 0) +
       result.messages_upserted,
   };
-  if (newWatermark) {
-    syncStateUpdate.last_synced_at = newWatermark.toISOString();
+  if (latestActivityAt && (!lastSyncedAt || latestActivityAt > lastSyncedAt)) {
+    syncStateUpdate.last_synced_at = latestActivityAt.toISOString();
   }
   await supabase
     .from('outreach_sync_state')

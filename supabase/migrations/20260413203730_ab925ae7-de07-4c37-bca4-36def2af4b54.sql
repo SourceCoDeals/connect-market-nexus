@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS additional_phone_numbers text[] DEFAULT '{}';

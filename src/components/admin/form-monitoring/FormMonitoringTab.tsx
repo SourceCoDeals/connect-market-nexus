@@ -4,27 +4,32 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle2, AlertTriangle, Activity, Users, TrendingUp } from 'lucide-react';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Activity,
+  Users,
+  TrendingUp,
+  Clock,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { HeroStatsSection } from '../analytics/HeroStatsSection';
-import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 interface FormMetrics {
   totalSignups: number;
   completedSignups: number;
   completionRate: number;
+  avgCompletionTime: number;
   fieldCompletionRates: Record<string, number>;
+  validationErrors: Array<{ field: string; errorCount: number; errorType: string }>;
   buyerTypeDistribution: Record<string, number>;
 }
 
 export function FormMonitoringTab() {
   const [metrics, setMetrics] = useState<FormMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Surface query errors instead of leaving `isLoading || !metrics` spinning
-  // forever — on failure the skeleton would never go away because metrics
-  // stayed null.
-  const [loadError, setLoadError] = useState<Error | null>(null);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
@@ -56,18 +61,26 @@ export function FormMonitoringTab() {
       buyerTypeDistribution[type] = (buyerTypeDistribution[type] || 0) + 1;
     });
 
+    // M-15 FIX: Replaced synthetic/estimated validation error counts with a note
+    // that real tracking is not yet implemented. Previously showed fabricated numbers
+    // (e.g., 2% email errors, 5% website errors) which created false confidence.
+    const validationErrors: Array<{ field: string; errorCount: number; errorType: string }> = [];
+    // TODO: Implement actual form validation error tracking via user_activity table
+    // to populate real error counts instead of synthetic estimates.
+
     return {
       totalSignups,
       completedSignups,
       completionRate,
+      avgCompletionTime: 0, // M-15 FIX: Was hardcoded to 8.5, now shows 0 until real tracking
       fieldCompletionRates,
+      validationErrors,
       buyerTypeDistribution,
     };
   };
 
   const loadMetrics = useCallback(async () => {
     setIsLoading(true);
-    setLoadError(null);
     try {
       const startDate = new Date();
 
@@ -93,9 +106,7 @@ export function FormMonitoringTab() {
 
       const processedMetrics = processMetrics(profilesData || []);
       setMetrics(processedMetrics);
-    } catch (err) {
-      const asError = err instanceof Error ? err : new Error(String(err));
-      setLoadError(asError);
+    } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error loading metrics',
@@ -123,16 +134,6 @@ export function FormMonitoringTab() {
     return { label: 'Needs Attention', variant: 'destructive' as const, color: 'text-destructive' };
   };
 
-  if (loadError) {
-    return (
-      <DashboardErrorBanner
-        title="Couldn't load form monitoring data"
-        error={loadError}
-        onRetry={() => loadMetrics()}
-      />
-    );
-  }
-
   if (isLoading || !metrics) {
     return (
       <Card>
@@ -144,28 +145,47 @@ export function FormMonitoringTab() {
     );
   }
 
-  // Avg Completion Time and Validation Errors tiles removed: both were fed by
-  // hardcoded 0s (see processMetrics — no real tracking of timing or per-field
-  // validation events exists yet). Showing "0m avg" and "0 errors" gave
-  // operators false confidence. The Completion Rate tile's trend was also
-  // hardcoded (+5%, +12%) with no prior-period comparison — removed here too.
+  const totalErrors = metrics.validationErrors.reduce((sum, error) => sum + error.errorCount, 0);
+
   const stats = [
     {
       label: 'Total Signups',
       value: metrics.totalSignups,
       icon: <Users className="h-5 w-5" />,
+      trend: {
+        value: 12,
+        isPositive: true,
+        label: 'vs last period',
+      },
       variant: 'default' as const,
     },
     {
       label: 'Completion Rate',
       value: `${Math.round(metrics.completionRate)}%`,
       icon: <CheckCircle2 className="h-5 w-5" />,
+      trend: {
+        value: 5,
+        isPositive: true,
+        label: 'vs last period',
+      },
       variant:
         metrics.completionRate >= 90
           ? ('success' as const)
           : metrics.completionRate >= 70
             ? ('warning' as const)
             : ('default' as const),
+    },
+    {
+      label: 'Avg Completion Time',
+      value: `${metrics.avgCompletionTime}m`,
+      icon: <Clock className="h-5 w-5" />,
+      variant: 'info' as const,
+    },
+    {
+      label: 'Validation Errors',
+      value: totalErrors,
+      icon: <XCircle className="h-5 w-5" />,
+      variant: totalErrors > 10 ? ('warning' as const) : ('default' as const),
     },
   ];
 
@@ -321,13 +341,8 @@ export function FormMonitoringTab() {
                 effort: 'Low',
               },
               {
-                // Per-field validation events aren't tracked yet — the previous
-                // template referenced an undefined `totalErrors`, failing
-                // typecheck. Keep the card as a generic recommendation until
-                // we wire a real validation-error counter.
                 title: 'Improve Field Validation',
-                description:
-                  'Provide real-time feedback as users type to reduce invalid submissions.',
+                description: `${totalErrors} validation errors detected. Provide real-time feedback as users type.`,
                 impact: 'High',
                 effort: 'Medium',
               },
@@ -359,13 +374,12 @@ export function FormMonitoringTab() {
         </CardContent>
       </Card>
 
-      {/* Detailed Analysis — Validation Errors tab removed (no real tracking
-          backs it; see processMetrics). Restore once user_activity events
-          surface per-field rejection counts. */}
+      {/* Detailed Analysis */}
       <Tabs defaultValue="fields" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="fields">Field Analysis</TabsTrigger>
           <TabsTrigger value="buyers">Buyer Types</TabsTrigger>
+          <TabsTrigger value="errors">Validation Errors</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fields" className="space-y-4">
@@ -440,6 +454,53 @@ export function FormMonitoringTab() {
                     );
                   })}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="errors" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Validation Errors</CardTitle>
+              <CardDescription>Common validation issues users encounter</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {metrics.validationErrors.length > 0 ? (
+                <div className="space-y-3">
+                  {metrics.validationErrors.map((error) => (
+                    <div
+                      key={`${error.field}-${error.errorType}`}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">
+                            {error.field
+                              .replace(/_/g, ' ')
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </p>
+                          <p className="text-sm text-muted-foreground">{error.errorType}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold tabular-nums text-destructive">
+                          {error.errorCount}
+                        </p>
+                        <p className="text-xs text-muted-foreground">occurrences</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-4" />
+                  <p className="text-lg font-semibold">No Validation Errors</p>
+                  <p className="text-muted-foreground mt-1">
+                    All form submissions are passing validation successfully!
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -75,14 +75,6 @@ export const usePermissions = () => {
   const canEditBuyers = isAdmin;
   const canManageUniverses = isAdmin;
   const canAccessDataRecovery = isAdmin;
-  /**
-   * Per-user outbound/outreach tools (Outlook Email, Smartlead Campaigns,
-   * PhoneBurner Dial Sessions, Fireflies). Every internal team member
-   * connects their own mailbox / dialer, so they should not have to ask
-   * an admin to unlock these — only the API-credential settings pages
-   * stay behind {@link canAccessSettings}.
-   */
-  const canAccessOutreachTools = isInternalTeam;
 
   return {
     userRole,
@@ -99,7 +91,6 @@ export const usePermissions = () => {
     canSendAgreements,
     canManageConnectionRequests,
     canAccessSettings,
-    canAccessOutreachTools,
     canExportData,
     canInviteTeamMembers,
     canEditBuyers,

@@ -161,37 +161,29 @@ const handler = async (req: Request): Promise<Response> => {
     let finalContactId = contact_id || null;
 
     if (!finalContactId) {
-      // Route through contacts_upsert for consistency with the rest of
-      // the contact writers. Uses contact_type='portal_user' so the row
-      // lives in the correct bucket (20260625000004 added the
-      // 'portal_user' CHECK value; prior to this fix every portal invite
-      // was filed as 'buyer' and mixed into buyer-side dedupe indexes).
-      const { data: upsertedId, error: contactError } = await (supabaseAdmin.rpc as any)(
-        'contacts_upsert',
-        {
-          p_identity: { email: normalizedEmail },
-          p_fields: {
-            first_name: first_name || 'Unknown',
-            last_name: last_name || '',
-            email: normalizedEmail,
-            contact_type: 'portal_user',
-            remarketing_buyer_id: buyer_id || null,
-          },
-          p_source: 'portal',
-        },
-      );
+      // Try to create a new contact; if email already exists, find it
+      const { data: newContact, error: contactError } = await supabaseAdmin
+        .from('contacts')
+        .insert({
+          first_name: first_name,
+          last_name: last_name || '',
+          email: normalizedEmail,
+          contact_type: 'buyer',
+          source: 'portal',
+          remarketing_buyer_id: buyer_id || null,
+        })
+        .select('id')
+        .single();
 
-      if (!contactError && typeof upsertedId === 'string') {
-        finalContactId = upsertedId;
+      if (newContact) {
+        finalContactId = newContact.id;
       } else if (contactError) {
-        // Fallback: look up by email regardless of contact_type so we can
-        // link to a pre-existing buyer row if the RPC INSERT branch hit a
-        // constraint we didn't account for.
+        // Try to find existing contact by email
         const { data: existingContact } = await supabaseAdmin
           .from('contacts')
           .select('id')
           .eq('email', normalizedEmail)
-          .in('contact_type', ['portal_user', 'buyer'])
+          .eq('contact_type', 'buyer')
           .maybeSingle();
 
         if (existingContact) {

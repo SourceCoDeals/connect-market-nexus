@@ -1,17 +1,17 @@
-import React from "react";
+import React from 'react';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import {
   CheckCircle2,
   Clock,
@@ -26,15 +26,47 @@ import {
   ArrowDownAZ,
   Building2,
   X,
-} from "lucide-react";
-import { AdminConnectionRequest } from "@/types/admin";
+  Globe,
+} from 'lucide-react';
+import { AdminConnectionRequest } from '@/types/admin';
 
 export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hold';
-export type BuyerTypeFilter = 'all' | 'private_equity' | 'corporate' | 'family_office' | 'independent_sponsor' | 'search_fund' | 'individual_buyer';
+export type BuyerTypeFilter =
+  | 'all'
+  | 'private_equity'
+  | 'corporate'
+  | 'family_office'
+  | 'independent_sponsor'
+  | 'search_fund'
+  | 'individual_buyer';
 export type NdaFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type FeeAgreementFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type DateRangeFilter = 'all' | '7d' | '30d' | '90d' | '6m' | '1y';
-export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date' | 'score_highest' | 'score_lowest' | 'name_asc' | 'name_desc' | 'company_asc' | 'listing_asc';
+export type SourceFilter =
+  | 'all'
+  | 'marketplace'
+  | 'webflow'
+  | 'website'
+  | 'referral'
+  | 'cold_outreach'
+  | 'networking'
+  | 'linkedin'
+  | 'email'
+  | 'manual'
+  | 'import'
+  | 'api';
+export type SortOption =
+  | 'newest'
+  | 'oldest'
+  | 'buyer_priority'
+  | 'deal_size'
+  | 'approval_date'
+  | 'score_highest'
+  | 'score_lowest'
+  | 'name_asc'
+  | 'name_desc'
+  | 'company_asc'
+  | 'listing_asc';
 
 interface PipelineFiltersProps {
   requests: AdminConnectionRequest[];
@@ -44,6 +76,7 @@ interface PipelineFiltersProps {
   ndaFilter: NdaFilter;
   feeAgreementFilter: FeeAgreementFilter;
   dateRangeFilter: DateRangeFilter;
+  sourceFilter: SourceFilter;
   sortOption: SortOption;
   searchQuery: string;
   onStatusFilterChange: (filter: StatusFilter) => void;
@@ -51,6 +84,7 @@ interface PipelineFiltersProps {
   onNdaFilterChange: (filter: NdaFilter) => void;
   onFeeAgreementFilterChange: (filter: FeeAgreementFilter) => void;
   onDateRangeFilterChange: (filter: DateRangeFilter) => void;
+  onSourceFilterChange: (filter: SourceFilter) => void;
   onSortChange: (sort: SortOption) => void;
   onSearchChange: (query: string) => void;
   /** Slot for the deals dropdown (ListingFilterSelect) */
@@ -59,41 +93,44 @@ interface PipelineFiltersProps {
   viewSwitcher?: React.ReactNode;
 }
 
-function FilterDropdown({ 
-  label, 
-  icon: Icon, 
-  value, 
-  options, 
-  onChange 
-}: { 
-  label: string; 
-  icon: React.ElementType; 
-  value: string; 
-  options: { value: string; label: string; count?: number }[]; 
+function FilterDropdown({
+  label,
+  icon: Icon,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  icon: React.ElementType;
+  value: string;
+  options: { value: string; label: string; count?: number }[];
   onChange: (value: string) => void;
 }) {
   const isFiltered = value !== 'all';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className={`
+        <button
+          className={`
           flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 px-3 py-1.5 rounded-full
-          ${isFiltered 
-            ? "bg-primary/10 text-primary border border-primary/20" 
-            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          ${
+            isFiltered
+              ? 'bg-primary/10 text-primary border border-primary/20'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
           }
-        `}>
+        `}
+        >
           <Icon className="h-3.5 w-3.5" />
           {label}
           {isFiltered && (
             <span className="text-xs bg-primary/20 px-1.5 py-0.5 rounded-full">
-              {options.find(o => o.value === value)?.count ?? ''}
+              {options.find((o) => o.value === value)?.count ?? ''}
             </span>
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        align="start" 
+      <DropdownMenuContent
+        align="start"
         className="w-56 bg-popover border border-border rounded-lg shadow-lg"
       >
         <div className="p-3 border-b border-border">
@@ -108,21 +145,21 @@ function FilterDropdown({
               onClick={() => onChange(option.value)}
               className={`
                 w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors duration-200
-                ${value === option.value 
-                  ? "bg-primary text-primary-foreground" 
-                  : "text-foreground hover:bg-muted"
+                ${
+                  value === option.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-muted'
                 }
               `}
             >
               <span className="font-medium">{option.label}</span>
               {option.count !== undefined && (
-                <span className={`
+                <span
+                  className={`
                   text-xs font-medium
-                  ${value === option.value 
-                    ? "text-primary-foreground/70" 
-                    : "text-muted-foreground"
-                  }
-                `}>
+                  ${value === option.value ? 'text-primary-foreground/70' : 'text-muted-foreground'}
+                `}
+                >
                   {option.count}
                 </span>
               )}
@@ -142,6 +179,7 @@ export function PipelineFilters({
   ndaFilter,
   feeAgreementFilter,
   dateRangeFilter,
+  sourceFilter,
   sortOption,
   searchQuery,
   onStatusFilterChange,
@@ -149,42 +187,91 @@ export function PipelineFilters({
   onNdaFilterChange,
   onFeeAgreementFilterChange,
   onDateRangeFilterChange,
+  onSourceFilterChange,
   onSortChange,
   onSearchChange,
   listingFilter,
   viewSwitcher,
 }: PipelineFiltersProps) {
-
   const statusCounts = {
     all: requests.length,
-    pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved').length,
-    rejected: requests.filter(r => r.status === 'rejected').length,
-    on_hold: requests.filter(r => r.status === 'on_hold').length,
+    pending: requests.filter((r) => r.status === 'pending').length,
+    approved: requests.filter((r) => r.status === 'approved').length,
+    rejected: requests.filter((r) => r.status === 'rejected').length,
+    on_hold: requests.filter((r) => r.status === 'on_hold').length,
   };
 
   const buyerTypeOptions = [
     { value: 'all', label: 'All Buyer Types', count: requests.length },
-    { value: 'private_equity', label: 'Private Equity', count: requests.filter(r => r.user?.buyer_type === 'private_equity').length },
-    { value: 'family_office', label: 'Family Office', count: requests.filter(r => r.user?.buyer_type === 'family_office').length },
-    { value: 'search_fund', label: 'Search Fund', count: requests.filter(r => r.user?.buyer_type === 'search_fund').length },
-    { value: 'corporate', label: 'Corporate / Strategic', count: requests.filter(r => r.user?.buyer_type === 'corporate').length },
-    { value: 'individual_buyer', label: 'Individual Buyer', count: requests.filter(r => r.user?.buyer_type === 'individual_buyer').length },
-    { value: 'independent_sponsor', label: 'Independent Sponsor', count: requests.filter(r => r.user?.buyer_type === 'independent_sponsor').length },
+    {
+      value: 'private_equity',
+      label: 'Private Equity',
+      count: requests.filter((r) => r.user?.buyer_type === 'private_equity').length,
+    },
+    {
+      value: 'family_office',
+      label: 'Family Office',
+      count: requests.filter((r) => r.user?.buyer_type === 'family_office').length,
+    },
+    {
+      value: 'search_fund',
+      label: 'Search Fund',
+      count: requests.filter((r) => r.user?.buyer_type === 'search_fund').length,
+    },
+    {
+      value: 'corporate',
+      label: 'Corporate / Strategic',
+      count: requests.filter((r) => r.user?.buyer_type === 'corporate').length,
+    },
+    {
+      value: 'individual_buyer',
+      label: 'Individual Buyer',
+      count: requests.filter((r) => r.user?.buyer_type === 'individual_buyer').length,
+    },
+    {
+      value: 'independent_sponsor',
+      label: 'Independent Sponsor',
+      count: requests.filter((r) => r.user?.buyer_type === 'independent_sponsor').length,
+    },
   ];
 
   const ndaOptions = [
     { value: 'all', label: 'All NDA Status' },
-    { value: 'signed', label: 'NDA Signed', count: requests.filter(r => r.lead_nda_signed).length },
-    { value: 'sent', label: 'NDA Sent (Not Signed)', count: requests.filter(r => r.lead_nda_email_sent && !r.lead_nda_signed).length },
-    { value: 'not_signed', label: 'NDA Not Signed', count: requests.filter(r => !r.lead_nda_signed).length },
+    {
+      value: 'signed',
+      label: 'NDA Signed',
+      count: requests.filter((r) => r.lead_nda_signed).length,
+    },
+    {
+      value: 'sent',
+      label: 'NDA Sent (Not Signed)',
+      count: requests.filter((r) => r.lead_nda_email_sent && !r.lead_nda_signed).length,
+    },
+    {
+      value: 'not_signed',
+      label: 'NDA Not Signed',
+      count: requests.filter((r) => !r.lead_nda_signed).length,
+    },
   ];
 
   const feeAgreementOptions = [
     { value: 'all', label: 'All Fee Agreement Status' },
-    { value: 'signed', label: 'Fee Agreement Signed', count: requests.filter(r => r.lead_fee_agreement_signed).length },
-    { value: 'sent', label: 'Fee Sent (Not Signed)', count: requests.filter(r => r.lead_fee_agreement_email_sent && !r.lead_fee_agreement_signed).length },
-    { value: 'not_signed', label: 'Fee Not Signed', count: requests.filter(r => !r.lead_fee_agreement_signed).length },
+    {
+      value: 'signed',
+      label: 'Fee Agreement Signed',
+      count: requests.filter((r) => r.lead_fee_agreement_signed).length,
+    },
+    {
+      value: 'sent',
+      label: 'Fee Sent (Not Signed)',
+      count: requests.filter((r) => r.lead_fee_agreement_email_sent && !r.lead_fee_agreement_signed)
+        .length,
+    },
+    {
+      value: 'not_signed',
+      label: 'Fee Not Signed',
+      count: requests.filter((r) => !r.lead_fee_agreement_signed).length,
+    },
   ];
 
   const statusOptions = [
@@ -218,12 +305,53 @@ export function PipelineFilters({
     { value: '1y', label: 'Last Year' },
   ];
 
+  const sourceOptions = [
+    { value: 'all', label: 'All Sources', count: requests.length },
+    {
+      value: 'marketplace',
+      label: 'Marketplace',
+      count: requests.filter((r) => r.source === 'marketplace').length,
+    },
+    {
+      value: 'webflow',
+      label: 'Webflow',
+      count: requests.filter((r) => r.source === 'webflow').length,
+    },
+    {
+      value: 'website',
+      label: 'Website',
+      count: requests.filter((r) => r.source === 'website').length,
+    },
+    {
+      value: 'referral',
+      label: 'Referral',
+      count: requests.filter((r) => r.source === 'referral').length,
+    },
+    {
+      value: 'manual',
+      label: 'Manual',
+      count: requests.filter((r) => r.source === 'manual').length,
+    },
+    {
+      value: 'cold_outreach',
+      label: 'Cold Outreach',
+      count: requests.filter((r) => r.source === 'cold_outreach').length,
+    },
+    {
+      value: 'linkedin',
+      label: 'LinkedIn',
+      count: requests.filter((r) => r.source === 'linkedin').length,
+    },
+    { value: 'email', label: 'Email', count: requests.filter((r) => r.source === 'email').length },
+  ].filter((o) => o.value === 'all' || o.count > 0);
+
   const hasActiveFilters =
     statusFilter !== 'all' ||
     buyerTypeFilter !== 'all' ||
     ndaFilter !== 'all' ||
     feeAgreementFilter !== 'all' ||
     dateRangeFilter !== 'all' ||
+    sourceFilter !== 'all' ||
     searchQuery;
 
   const clearAllFilters = () => {
@@ -232,6 +360,7 @@ export function PipelineFilters({
     onNdaFilterChange('all');
     onFeeAgreementFilterChange('all');
     onDateRangeFilterChange('all');
+    onSourceFilterChange('all');
     onSearchChange('');
   };
 
@@ -288,21 +417,21 @@ export function PipelineFilters({
                   onClick={() => onStatusFilterChange(option.value as StatusFilter)}
                   className={`
                     px-4 py-2 text-sm font-medium rounded-full transition-all duration-200
-                    ${isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }
                   `}
                 >
                   {option.label}
                   {option.count > 0 && (
-                    <span className={`
+                    <span
+                      className={`
                       ml-2 text-xs font-medium
-                      ${isActive
-                        ? "text-primary-foreground/70"
-                        : "text-muted-foreground"
-                      }
-                    `}>
+                      ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}
+                    `}
+                    >
                       {option.count}
                     </span>
                   )}
@@ -313,7 +442,8 @@ export function PipelineFilters({
           {hasActiveFilters && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>
-                Showing <span className="font-semibold text-foreground">{filteredCount}</span> of {requests.length}
+                Showing <span className="font-semibold text-foreground">{filteredCount}</span> of{' '}
+                {requests.length}
               </span>
               <button
                 onClick={clearAllFilters}
@@ -355,6 +485,13 @@ export function PipelineFilters({
             value={dateRangeFilter}
             options={dateRangeOptions}
             onChange={(v) => onDateRangeFilterChange(v as DateRangeFilter)}
+          />
+          <FilterDropdown
+            label="Source"
+            icon={Globe}
+            value={sourceFilter}
+            options={sourceOptions}
+            onChange={(v) => onSourceFilterChange(v as SourceFilter)}
           />
         </div>
       </div>

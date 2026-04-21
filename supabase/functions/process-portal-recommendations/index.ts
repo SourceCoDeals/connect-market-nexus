@@ -72,7 +72,7 @@ serve(async (req) => {
     const { data: allCriteria } = await supabase
       .from('portal_thesis_criteria')
       .select(
-        'id, portal_org_id, industry_label, industry_keywords, excluded_keywords, ebitda_min, ebitda_max, revenue_min, revenue_max, employee_min, employee_max, target_states, portfolio_buyer_id, priority',
+        'id, portal_org_id, industry_label, industry_keywords, ebitda_min, ebitda_max, revenue_min, revenue_max, employee_min, employee_max, target_states, portfolio_buyer_id, priority',
       )
       .eq('is_active', true);
 

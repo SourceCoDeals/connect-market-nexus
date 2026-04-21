@@ -175,6 +175,7 @@ export function createUserObject(profile: Record<string, unknown>): UserWithData
     // Additional comprehensive fields
     mandate_blurb: (profile.mandate_blurb as string) || '',
     portfolio_company_addon: (profile.portfolio_company_addon as string) || '',
+    remarketing_buyer_id: (profile.remarketing_buyer_id as string) || null,
     backers_summary: (profile.backers_summary as string) || '',
     anchor_investors_summary: (profile.anchor_investors_summary as string) || '',
 

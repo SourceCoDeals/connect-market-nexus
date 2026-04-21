@@ -223,35 +223,11 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
                       {' · '}
                       {new Date(doc.created_at).toLocaleDateString()}
                     </p>
-                    {/* CTO audit: surface text-extraction failures so admins
-                        know when a doc uploaded cleanly but couldn't be
-                        parsed for AI enrichment. Previously this column
-                        was written server-side but never displayed. */}
-                    {(doc as { text_extraction_error?: string | null }).text_extraction_error && (
-                      <p
-                        className="text-xs text-destructive mt-0.5 truncate"
-                        title={
-                          (doc as { text_extraction_error?: string }).text_extraction_error || ''
-                        }
-                      >
-                        Text extraction failed:{' '}
-                        {(doc as { text_extraction_error?: string }).text_extraction_error}
-                      </p>
-                    )}
                   </div>
                   {!doc.allow_download && (
                     <Badge variant="outline" className="text-xs">
                       <EyeOff className="h-3 w-3 mr-1" />
                       View only
-                    </Badge>
-                  )}
-                  {(doc as { text_extraction_error?: string | null }).text_extraction_error && (
-                    <Badge
-                      variant="outline"
-                      className="text-xs border-destructive text-destructive"
-                      title="Text could not be extracted from this document. AI enrichment will skip it."
-                    >
-                      Extraction failed
                     </Badge>
                   )}
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

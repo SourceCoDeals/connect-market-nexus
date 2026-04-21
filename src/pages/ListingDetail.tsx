@@ -224,7 +224,7 @@ const ListingDetail = () => {
                       tooltip:
                         'Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process.',
                     },
-                    // Metric 3: Custom (when set by admin)
+                    // Metric 3: Employees or Custom
                     ...(listing.metric_3_type === 'custom' && listing.metric_3_custom_label
                       ? [
                           {
@@ -233,7 +233,15 @@ const ListingDetail = () => {
                             subtitle: listing.metric_3_custom_subtitle ?? undefined,
                           },
                         ]
-                      : []),
+                      : (listing.full_time_employees || 0) + (listing.part_time_employees || 0) > 0
+                        ? [
+                            {
+                              label: 'Team Size',
+                              value: `${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`,
+                              subtitle: `${listing.full_time_employees || 0} FT, ${listing.part_time_employees || 0} PT`,
+                            },
+                          ]
+                        : []),
                     // Metric 4: EBITDA Margin (default) or Custom
                     ...(listing.metric_4_type === 'custom' && listing.metric_4_custom_label
                       ? [

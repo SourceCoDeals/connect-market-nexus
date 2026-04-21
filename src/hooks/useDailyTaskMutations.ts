@@ -541,14 +541,7 @@ export function useEditTask() {
       updates: Partial<
         Pick<
           DailyStandupTask,
-          | 'title'
-          | 'description'
-          | 'task_type'
-          | 'due_date'
-          | 'deal_id'
-          | 'deal_reference'
-          | 'tags'
-          | 'depends_on'
+          'title' | 'description' | 'task_type' | 'due_date' | 'deal_id' | 'deal_reference' | 'tags'
         >
       >;
     }) => {

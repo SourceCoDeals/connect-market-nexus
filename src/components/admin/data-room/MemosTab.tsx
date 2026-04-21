@@ -202,15 +202,8 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
         .eq('id', dealId);
       if (error) throw error;
       toast({ title: 'Project name saved' });
-    } catch (err) {
-      // Include the Postgres / PostgREST error so RLS denials and constraint
-      // violations stop hiding behind a generic "Failed to save" toast.
-      const message = err instanceof Error && err.message ? err.message : 'Unknown error';
-      toast({
-        title: 'Failed to save project name',
-        description: message,
-        variant: 'destructive',
-      });
+    } catch {
+      toast({ title: 'Failed to save project name', variant: 'destructive' });
     } finally {
       setIsSavingProjectName(false);
     }

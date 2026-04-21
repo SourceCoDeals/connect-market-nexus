@@ -1,21 +1,13 @@
 import { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Phone, Mail, PhoneCall, PhoneOff, Voicemail, UserX } from 'lucide-react';
-import { memberHasDialerPhone } from '@/types/contact-list';
 
 interface MemberWithActivity {
   contact_phone?: string | null;
   contact_email?: string | null;
   total_calls?: number;
   last_disposition?: string | null;
-  contact?: {
-    phone?: string | null;
-    email?: string | null;
-    mobile_phone_1?: string | null;
-    mobile_phone_2?: string | null;
-    mobile_phone_3?: string | null;
-    office_phone?: string | null;
-  } | null;
+  contact?: { phone?: string | null; email?: string | null } | null;
 }
 
 interface ListAnalyticsSummaryProps {
@@ -39,7 +31,7 @@ export function ListAnalyticsSummary({ members }: ListAnalyticsSummaryProps) {
     const total = members.length;
     if (total === 0) return null;
 
-    const withPhone = members.filter(memberHasDialerPhone).length;
+    const withPhone = members.filter((m) => m.contact_phone || m.contact?.phone).length;
     const withEmail = members.filter((m) => m.contact_email || m.contact?.email).length;
     const called = members.filter((m) => (m.total_calls ?? 0) > 0).length;
     const untouched = total - called;

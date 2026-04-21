@@ -75,7 +75,8 @@ export interface InboxStats {
 function computeStats(items: SmartleadInboxItem[]): InboxStats {
   return {
     total: items.length,
-    meetings: items.filter((i) => (i.manual_category || i.ai_category) === 'meeting_request').length,
+    meetings: items.filter((i) => (i.manual_category || i.ai_category) === 'meeting_request')
+      .length,
     interested: items.filter((i) => (i.manual_category || i.ai_category) === 'interested').length,
     positive: items.filter(
       (i) => (i.manual_sentiment || i.ai_sentiment) === 'positive' || i.ai_is_positive,
@@ -126,12 +127,37 @@ function applySearch(items: SmartleadInboxItem[], search: string): SmartleadInbo
   );
 }
 
-export function useSmartleadInbox(filter: InboxFilter = 'all', search: string = '') {
+export type CampaignFilter = 'all' | 'gp_only' | 'gp_buyer';
+
+function applyCampaignFilter(
+  items: SmartleadInboxItem[],
+  campaignFilter: CampaignFilter,
+): SmartleadInboxItem[] {
+  if (campaignFilter === 'all') return items;
+  if (campaignFilter === 'gp_only') {
+    return items.filter((i) => {
+      const name = (i.campaign_name || '').toLowerCase();
+      return name.includes('gp') && !name.includes('buyer');
+    });
+  }
+  if (campaignFilter === 'gp_buyer') {
+    return items.filter((i) => {
+      const name = (i.campaign_name || '').toLowerCase();
+      return name.includes('gp') && name.includes('buyer');
+    });
+  }
+  return items;
+}
+
+export function useSmartleadInbox(
+  filter: InboxFilter = 'all',
+  search: string = '',
+  campaignFilter: CampaignFilter = 'all',
+) {
   const query = useQuery({
     queryKey: ['smartlead-inbox'],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from('smartlead_reply_inbox') as any)
+      const { data, error } = await (supabase.from('smartlead_reply_inbox') as any)
         .select('*')
         .order('time_replied', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
@@ -142,8 +168,9 @@ export function useSmartleadInbox(filter: InboxFilter = 'all', search: string = 
   });
 
   const allItems = query.data || [];
-  const stats = computeStats(allItems);
-  const filtered = applySearch(applyFilter(allItems, filter), search);
+  const campaignFiltered = applyCampaignFilter(allItems, campaignFilter);
+  const stats = computeStats(campaignFiltered);
+  const filtered = applySearch(applyFilter(campaignFiltered, filter), search);
 
   return { ...query, items: filtered, stats, allItems };
 }
@@ -153,8 +180,7 @@ export function useSmartleadInboxItem(id: string | undefined) {
     queryKey: ['smartlead-inbox', id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await (supabase
-        .from('smartlead_reply_inbox') as any)
+      const { data, error } = await (supabase.from('smartlead_reply_inbox') as any)
         .select('*')
         .eq('id', id)
         .maybeSingle();
@@ -170,8 +196,7 @@ export function useUpdateInboxStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
-      const { error } = await (supabase
-        .from('smartlead_reply_inbox') as any)
+      const { error } = await (supabase.from('smartlead_reply_inbox') as any)
         .update({ status })
         .in('id', ids);
 
@@ -201,8 +226,7 @@ export function useRecategorizeInbox() {
       if (category !== undefined) updates.manual_category = category;
       if (sentiment !== undefined) updates.manual_sentiment = sentiment;
 
-      const { error } = await (supabase
-        .from('smartlead_reply_inbox') as any)
+      const { error } = await (supabase.from('smartlead_reply_inbox') as any)
         .update(updates)
         .eq('id', id);
 
@@ -218,8 +242,7 @@ export function useLinkInboxToDeal() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, dealId }: { id: string; dealId: string | null }) => {
-      const { error } = await (supabase
-        .from('smartlead_reply_inbox') as any)
+      const { error } = await (supabase.from('smartlead_reply_inbox') as any)
         .update({ linked_deal_id: dealId })
         .eq('id', id);
 

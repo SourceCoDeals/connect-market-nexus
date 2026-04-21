@@ -5,7 +5,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { extractFunctionError } from '@/hooks/email/useEmailConnection';
 import type { Json } from '@/integrations/supabase/types';
 
 function getFunctionsBaseUrl(): string {
@@ -93,39 +92,22 @@ export function useDeleteDocument() {
 
   return useMutation({
     mutationFn: async ({ documentId, dealId }: { documentId: string; dealId: string }) => {
-      // Route through the edge function so deletion uses the same
-      // service-role admin check as upload. The previous direct-from-client
-      // flow relied on storage + table RLS picking up `is_admin(auth.uid())`,
-      // which could silently reject admins whose role state wasn't
-      // consistent across user_roles/profiles — same symptom the Net
-      // Conversion CIM hit where an admin could upload but not delete.
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error('Not authenticated');
+      // Delete from storage first
+      const { data: doc, error: docError } = await supabase
+        .from('data_room_documents')
+        .select('storage_path')
+        .eq('id', documentId)
+        .single();
+      if (docError) throw docError;
 
-      const response = await fetch(`${getFunctionsBaseUrl()}/data-room-delete`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ document_id: documentId }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Delete failed';
-        try {
-          const err = await response.json();
-          errorMessage = err.error || errorMessage;
-        } catch {
-          errorMessage = `Delete failed (HTTP ${response.status}). The data-room-delete function may not be deployed.`;
-        }
-        throw new Error(errorMessage);
+      if (doc?.storage_path) {
+        await supabase.storage.from('deal-data-rooms').remove([doc.storage_path]);
       }
 
+      // Delete record
+      const { error } = await supabase.from('data_room_documents').delete().eq('id', documentId);
+
+      if (error) throw error;
       return { dealId };
     },
     onSuccess: (result) => {
@@ -311,13 +293,7 @@ export function useGenerateMemo() {
         body: params,
       });
 
-      // `supabase.functions.invoke` flattens FunctionsHttpError.message to
-      // "Edge Function returned a non-2xx status code" and hides the real
-      // reason (e.g. "Listing is missing critical data...") in the response
-      // body. `extractFunctionError` digs it out so the toast is actionable.
-      if (response.error) {
-        throw new Error(await extractFunctionError(response.error, 'Failed to generate memo'));
-      }
+      if (response.error) throw new Error(response.error.message);
       return response.data;
     },
     onSuccess: (_, variables) => {
@@ -341,11 +317,7 @@ export function useGenerateTeaser() {
         body: params,
       });
 
-      // See useGenerateMemo — the Supabase client flattens the real error
-      // into a generic "non-2xx status code" message unless we unwrap it.
-      if (response.error) {
-        throw new Error(await extractFunctionError(response.error, 'Failed to generate teaser'));
-      }
+      if (response.error) throw new Error(response.error.message);
       return response.data;
     },
     onSuccess: (data, variables) => {

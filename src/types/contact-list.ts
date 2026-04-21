@@ -61,30 +61,6 @@ export interface ContactListMember {
   last_disposition?: string | null;
 }
 
-// A member is "dialable" if any phone field the backend's pickDialerPhones()
-// can use is populated — the denormalized snapshot, the contact's primary
-// phone, mobile_phone_1/2/3, or office_phone. Checking only contact_phone
-// under-counts members whose contact row was enriched after they were added.
-export function memberHasDialerPhone(m: {
-  contact_phone?: string | null;
-  contact?: {
-    phone?: string | null;
-    mobile_phone_1?: string | null;
-    mobile_phone_2?: string | null;
-    mobile_phone_3?: string | null;
-    office_phone?: string | null;
-  } | null;
-}): boolean {
-  return !!(
-    m.contact_phone ||
-    m.contact?.phone ||
-    m.contact?.mobile_phone_1 ||
-    m.contact?.mobile_phone_2 ||
-    m.contact?.mobile_phone_3 ||
-    m.contact?.office_phone
-  );
-}
-
 export interface ContactListFilterSnapshot {
   page: string;
   searchQuery?: string;

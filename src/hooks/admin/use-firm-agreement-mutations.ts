@@ -25,11 +25,11 @@ export function useUpdateFirmFeeAgreement() {
       signedByUserId?: string | null;
       signedByName?: string | null;
     }) => {
-      const { data, error } = await supabase.rpc('update_fee_agreement_firm_status', {
+      const { data, error } = await (supabase as any).rpc('update_fee_agreement_firm_status', {
         p_firm_id: firmId,
         p_is_signed: isSigned,
         p_signed_by_user_id: signedByUserId ?? undefined,
-        p_signed_at: (isSigned ? new Date().toISOString() : null) ?? undefined,
+        p_signed_at: isSigned ? new Date().toISOString() : undefined,
       });
 
       if (error) throw error;
@@ -105,11 +105,11 @@ export function useUpdateFirmNDA() {
       signedByUserId?: string | null;
       signedByName?: string | null;
     }) => {
-      const { data, error } = await supabase.rpc('update_nda_firm_status', {
+      const { data, error } = await (supabase as any).rpc('update_nda_firm_status', {
         p_firm_id: firmId,
         p_is_signed: isSigned,
         p_signed_by_user_id: signedByUserId ?? undefined,
-        p_signed_at: (isSigned ? new Date().toISOString() : null) ?? undefined,
+        p_signed_at: isSigned ? new Date().toISOString() : undefined,
       });
 
       if (error) throw error;
@@ -209,9 +209,13 @@ export function useUpdateAgreementStatus() {
               nda_status: params.newStatus,
               nda_signed: params.newStatus === 'signed',
               nda_signed_at:
-                params.newStatus === 'signed' ? (firm.nda_signed_at || new Date().toISOString()) : null,
+                params.newStatus === 'signed'
+                  ? firm.nda_signed_at || new Date().toISOString()
+                  : null,
               nda_signed_by_name:
-                params.newStatus === 'signed' ? (firm.nda_signed_by_name || params.signedByName || null) : null,
+                params.newStatus === 'signed'
+                  ? firm.nda_signed_by_name || params.signedByName || null
+                  : null,
             };
           }
           return {
@@ -220,10 +224,12 @@ export function useUpdateAgreementStatus() {
             fee_agreement_signed: params.newStatus === 'signed',
             fee_agreement_signed_at:
               params.newStatus === 'signed'
-                ? (firm.fee_agreement_signed_at || new Date().toISOString())
+                ? firm.fee_agreement_signed_at || new Date().toISOString()
                 : null,
             fee_agreement_signed_by_name:
-              params.newStatus === 'signed' ? (firm.fee_agreement_signed_by_name || params.signedByName || null) : null,
+              params.newStatus === 'signed'
+                ? firm.fee_agreement_signed_by_name || params.signedByName || null
+                : null,
           };
         });
       });
@@ -234,12 +240,14 @@ export function useUpdateAgreementStatus() {
       // If status is being set to 'signed', update any pending document_requests and notify firm members
       if (params.newStatus === 'signed') {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
           if (user) {
             const adminName = user.user_metadata?.first_name
               ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim()
               : user.email || 'Admin';
-            
+
             // Update pending document_requests for this firm + agreement type
             await supabase
               .from('document_requests')
@@ -277,6 +285,12 @@ export function useUpdateAgreementStatus() {
       queryClient.invalidateQueries({ queryKey: ['agreement-audit-log'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
       queryClient.invalidateQueries({ queryKey: ['admin-pending-doc-requests'] });
+      // Connection request queries (synced via DB trigger, invalidate to refetch)
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-firm'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       // Buyer-side queries
       queryClient.invalidateQueries({ queryKey: ['buyer-firm-agreement-status'] });
       queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
@@ -382,12 +396,15 @@ export function useReassignFirmMember() {
 
       // Insert new membership
       if (userId) {
-        const { error: insError } = await supabase
-          .from('firm_members' as never)
-          .upsert(
-            { firm_id: newFirmId, user_id: userId, member_type: 'marketplace_user', added_at: new Date().toISOString() } as never,
-            { onConflict: 'firm_id,user_id' },
-          );
+        const { error: insError } = await supabase.from('firm_members' as never).upsert(
+          {
+            firm_id: newFirmId,
+            user_id: userId,
+            member_type: 'marketplace_user',
+            added_at: new Date().toISOString(),
+          } as never,
+          { onConflict: 'firm_id,user_id' },
+        );
         if (insError) throw insError;
       }
 
