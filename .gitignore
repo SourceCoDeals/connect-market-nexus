@@ -47,3 +47,4 @@ venv/
 
 # Docker
 docker-compose.override.yml
+.vercel
