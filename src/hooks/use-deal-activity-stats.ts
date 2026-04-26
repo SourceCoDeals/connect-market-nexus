@@ -51,7 +51,17 @@ interface UseDealActivityStatsResult {
 
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
-function entryChannel(e: UnifiedTimelineEntry): StatsChannel | null {
+export const EMPTY_DEAL_ACTIVITY_STATS: DealActivityStats = {
+  totalTouchpoints: 0,
+  byChannel: { calls: 0, emails: 0, linkedin: 0, meetings: 0, notes: 0 },
+  byDirection: { outbound: 0, inbound: 0 },
+  lastTouch: null,
+  bestChannel: null,
+  nextScheduledAction: null,
+  byRep: {},
+};
+
+export function entryChannel(e: UnifiedTimelineEntry): StatsChannel | null {
   if (e.category === 'calls') return 'calls';
   if (e.category === 'emails') return 'emails';
   if (e.category === 'linkedin') return 'linkedin';
@@ -68,14 +78,14 @@ function entryChannel(e: UnifiedTimelineEntry): StatsChannel | null {
   return null;
 }
 
-function entryDirection(e: UnifiedTimelineEntry): 'outbound' | 'inbound' | null {
+export function entryDirection(e: UnifiedTimelineEntry): 'outbound' | 'inbound' | null {
   const m = (e.metadata ?? {}) as Record<string, unknown>;
   const dir = m.direction;
   if (dir === 'outbound' || dir === 'inbound') return dir;
   return null;
 }
 
-function lastTouchOutcome(e: UnifiedTimelineEntry): string {
+export function lastTouchOutcome(e: UnifiedTimelineEntry): string {
   const m = (e.metadata ?? {}) as Record<string, unknown>;
   if (e.source === 'call') {
     return (m.outcome as string | undefined) ?? e.title ?? 'call';
@@ -89,6 +99,202 @@ function lastTouchOutcome(e: UnifiedTimelineEntry): string {
   }
   if (e.source === 'transcript') return 'meeting';
   return e.title ?? 'touch';
+}
+
+export interface ScheduledTaskLike {
+  due_date?: string | null;
+  task_type?: string | null;
+  description?: string | null;
+}
+
+/**
+ * Pure compute function. Exported so unit tests can hit it without spinning
+ * up react-query / a query client.
+ */
+export function computeDealActivityStats(
+  entries: UnifiedTimelineEntry[],
+  tasks: ScheduledTaskLike[],
+  now: number = Date.now(),
+): DealActivityStats {
+  const cutoff30d = now - 30 * MS_IN_DAY;
+  const cutoff90d = now - 90 * MS_IN_DAY;
+
+  if (entries.length === 0 && tasks.length === 0) {
+    return EMPTY_DEAL_ACTIVITY_STATS;
+  }
+
+  const byChannel = { calls: 0, emails: 0, linkedin: 0, meetings: 0, notes: 0 };
+  const byDirection = { outbound: 0, inbound: 0 };
+  const byRep: Record<string, number> = {};
+  let totalTouchpoints = 0;
+  let lastTouch: DealActivityStats['lastTouch'] = null;
+
+  // Per-channel direction counters over a 90-day window for the
+  // bestChannel reply-rate computation.
+  const replyCounts = {
+    call: { outbound: 0, inbound: 0, replyDelays: [] as number[] },
+    email: { outbound: 0, inbound: 0, replyDelays: [] as number[] },
+    linkedin: { outbound: 0, inbound: 0, replyDelays: [] as number[] },
+  };
+
+  // Sort ascending by timestamp so we can pair outbound→inbound for delay.
+  const ascending = [...entries].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
+  const lastOutbound: Record<'call' | 'email' | 'linkedin', number | null> = {
+    call: null,
+    email: null,
+    linkedin: null,
+  };
+
+  for (const e of ascending) {
+    const channel = entryChannel(e);
+    if (!channel) continue;
+    const ts = new Date(e.timestamp).getTime();
+    if (Number.isNaN(ts)) continue;
+
+    // 30-day touchpoint counts
+    if (ts >= cutoff30d) {
+      totalTouchpoints++;
+      byChannel[channel]++;
+      const dir = entryDirection(e);
+      if (dir) byDirection[dir]++;
+      if (e.adminName) {
+        byRep[e.adminName] = (byRep[e.adminName] ?? 0) + 1;
+      }
+    }
+
+    // Last meaningful touch (any channel, any time — answers "where did it end")
+    if (channel !== 'notes') {
+      if (!lastTouch || ts > new Date(lastTouch.at).getTime()) {
+        lastTouch = {
+          at: e.timestamp,
+          channel,
+          outcome: lastTouchOutcome(e),
+          teamMember: e.adminName ?? null,
+        };
+      }
+    }
+
+    // 90-day reply rate per channel
+    if (ts >= cutoff90d) {
+      const rcKey =
+        channel === 'calls'
+          ? 'call'
+          : channel === 'emails'
+            ? 'email'
+            : channel === 'linkedin'
+              ? 'linkedin'
+              : null;
+      if (rcKey) {
+        const dir = entryDirection(e);
+        if (dir === 'outbound') {
+          replyCounts[rcKey].outbound++;
+          lastOutbound[rcKey] = ts;
+        } else if (dir === 'inbound') {
+          replyCounts[rcKey].inbound++;
+          const last = lastOutbound[rcKey];
+          if (last != null && ts >= last) {
+            replyCounts[rcKey].replyDelays.push(ts - last);
+          }
+        }
+      }
+    }
+  }
+
+  // bestChannel — channel with highest reply rate, requiring ≥3 outbound.
+  // Reason format: "{N} of {M} {channel}s got a reply within {avg time}"
+  type ReplyKey = 'call' | 'email' | 'linkedin';
+  const bestChannelEntry = (Object.entries(replyCounts) as [ReplyKey, typeof replyCounts.call][])
+    .filter(([, c]) => c.outbound >= 3)
+    .map(([k, c]) => ({
+      channel: k,
+      rate: c.inbound / c.outbound,
+      inbound: c.inbound,
+      outbound: c.outbound,
+      avgDelayMs:
+        c.replyDelays.length > 0
+          ? c.replyDelays.reduce((a, b) => a + b, 0) / c.replyDelays.length
+          : null,
+    }))
+    .sort((a, b) => b.rate - a.rate)[0];
+
+  let bestChannel: DealActivityStats['bestChannel'] = null;
+  if (bestChannelEntry && bestChannelEntry.inbound > 0) {
+    const channelLabel =
+      bestChannelEntry.channel === 'call'
+        ? 'call'
+        : bestChannelEntry.channel === 'email'
+          ? 'email'
+          : 'LinkedIn message';
+    const avg = bestChannelEntry.avgDelayMs;
+    const within =
+      avg == null
+        ? '—'
+        : avg < 60 * 60 * 1000
+          ? `${Math.round(avg / (60 * 1000))}m`
+          : avg < 24 * 60 * 60 * 1000
+            ? `${Math.round(avg / (60 * 60 * 1000))}h`
+            : `${Math.round(avg / MS_IN_DAY)}d`;
+    bestChannel = {
+      channel: bestChannelEntry.channel,
+      reason: `${bestChannelEntry.inbound} of ${bestChannelEntry.outbound} ${channelLabel}s got a reply within ${within}`,
+    };
+  }
+
+  // nextScheduledAction — earliest future {callback, task}.
+  let nextCallback: { at: number; description: string } | null = null;
+  for (const e of entries) {
+    if (e.source !== 'call') continue;
+    const m = (e.metadata ?? {}) as Record<string, unknown>;
+    const cbStr = m.callback_scheduled_date as string | null | undefined;
+    if (!cbStr) continue;
+    const t = new Date(cbStr).getTime();
+    if (Number.isNaN(t) || t <= now) continue;
+    if (!nextCallback || t < nextCallback.at) {
+      nextCallback = {
+        at: t,
+        description: `Callback: ${e.title || 'call'}${e.adminName ? ` (${e.adminName})` : ''}`,
+      };
+    }
+  }
+
+  let nextTask: { at: number; description: string } | null = null;
+  for (const t of tasks) {
+    const dueStr = t.due_date;
+    if (!dueStr) continue;
+    const dt = new Date(dueStr).getTime();
+    if (Number.isNaN(dt) || dt <= now) continue;
+    const desc = (t.task_type ? `${t.task_type}: ` : '') + (t.description ?? 'Task due');
+    if (!nextTask || dt < nextTask.at) {
+      nextTask = { at: dt, description: desc };
+    }
+  }
+
+  let nextScheduledAction: DealActivityStats['nextScheduledAction'] = null;
+  if (nextCallback && (!nextTask || nextCallback.at <= nextTask.at)) {
+    nextScheduledAction = {
+      type: 'callback',
+      at: new Date(nextCallback.at).toISOString(),
+      description: nextCallback.description,
+    };
+  } else if (nextTask) {
+    nextScheduledAction = {
+      type: 'task',
+      at: new Date(nextTask.at).toISOString(),
+      description: nextTask.description,
+    };
+  }
+
+  return {
+    totalTouchpoints,
+    byChannel,
+    byDirection,
+    lastTouch,
+    bestChannel,
+    nextScheduledAction,
+    byRep,
+  };
 }
 
 export function useDealActivityStats(listingId: string | null): UseDealActivityStatsResult {
@@ -110,199 +316,8 @@ export function useDealActivityStats(listingId: string | null): UseDealActivityS
   });
 
   const stats = useMemo<DealActivityStats>(() => {
-    const now = Date.now();
-    const cutoff30d = now - 30 * MS_IN_DAY;
-    const cutoff90d = now - 90 * MS_IN_DAY;
-
-    const empty: DealActivityStats = {
-      totalTouchpoints: 0,
-      byChannel: { calls: 0, emails: 0, linkedin: 0, meetings: 0, notes: 0 },
-      byDirection: { outbound: 0, inbound: 0 },
-      lastTouch: null,
-      bestChannel: null,
-      nextScheduledAction: null,
-      byRep: {},
-    };
-
-    if (!listingId) return empty;
-
-    const byChannel = { calls: 0, emails: 0, linkedin: 0, meetings: 0, notes: 0 };
-    const byDirection = { outbound: 0, inbound: 0 };
-    const byRep: Record<string, number> = {};
-    let totalTouchpoints = 0;
-    let lastTouch: DealActivityStats['lastTouch'] = null;
-
-    // Per-channel direction counters over a 90-day window for the
-    // bestChannel reply-rate computation.
-    const replyCounts = {
-      call: { outbound: 0, inbound: 0, replyDelays: [] as number[] },
-      email: { outbound: 0, inbound: 0, replyDelays: [] as number[] },
-      linkedin: { outbound: 0, inbound: 0, replyDelays: [] as number[] },
-    };
-
-    // Sort ascending by timestamp so we can pair outbound→inbound for delay.
-    const ascending = [...entries].sort(
-      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
-    const lastOutbound: Record<'call' | 'email' | 'linkedin', number | null> = {
-      call: null,
-      email: null,
-      linkedin: null,
-    };
-
-    for (const e of ascending) {
-      const channel = entryChannel(e);
-      if (!channel) continue;
-      const ts = new Date(e.timestamp).getTime();
-      if (Number.isNaN(ts)) continue;
-
-      // 30-day touchpoint counts
-      if (ts >= cutoff30d) {
-        totalTouchpoints++;
-        byChannel[channel]++;
-        const dir = entryDirection(e);
-        if (dir) byDirection[dir]++;
-        if (e.adminName) {
-          byRep[e.adminName] = (byRep[e.adminName] ?? 0) + 1;
-        }
-      }
-
-      // Last meaningful touch (any channel, any time — answers "where did it end")
-      if (channel !== 'notes') {
-        if (!lastTouch || ts > new Date(lastTouch.at).getTime()) {
-          lastTouch = {
-            at: e.timestamp,
-            channel,
-            outcome: lastTouchOutcome(e),
-            teamMember: e.adminName ?? null,
-          };
-        }
-      }
-
-      // 90-day reply rate per channel
-      if (ts >= cutoff90d) {
-        const rcKey =
-          channel === 'calls'
-            ? 'call'
-            : channel === 'emails'
-              ? 'email'
-              : channel === 'linkedin'
-                ? 'linkedin'
-                : null;
-        if (rcKey) {
-          const dir = entryDirection(e);
-          if (dir === 'outbound') {
-            replyCounts[rcKey].outbound++;
-            lastOutbound[rcKey] = ts;
-          } else if (dir === 'inbound') {
-            replyCounts[rcKey].inbound++;
-            const last = lastOutbound[rcKey];
-            if (last != null && ts >= last) {
-              replyCounts[rcKey].replyDelays.push(ts - last);
-            }
-          }
-        }
-      }
-    }
-
-    // bestChannel — channel with highest reply rate, requiring ≥3 outbound.
-    // Reason format: "{N} of {M} {channel}s got a reply within {avg time}"
-    type ReplyKey = 'call' | 'email' | 'linkedin';
-    const bestChannelEntry = (Object.entries(replyCounts) as [ReplyKey, typeof replyCounts.call][])
-      .filter(([, c]) => c.outbound >= 3)
-      .map(([k, c]) => ({
-        channel: k,
-        rate: c.inbound / c.outbound,
-        inbound: c.inbound,
-        outbound: c.outbound,
-        avgDelayMs:
-          c.replyDelays.length > 0
-            ? c.replyDelays.reduce((a, b) => a + b, 0) / c.replyDelays.length
-            : null,
-      }))
-      .sort((a, b) => b.rate - a.rate)[0];
-
-    let bestChannel: DealActivityStats['bestChannel'] = null;
-    if (bestChannelEntry && bestChannelEntry.inbound > 0) {
-      const channelLabel =
-        bestChannelEntry.channel === 'call'
-          ? 'call'
-          : bestChannelEntry.channel === 'email'
-            ? 'email'
-            : 'LinkedIn message';
-      const avg = bestChannelEntry.avgDelayMs;
-      const within =
-        avg == null
-          ? '—'
-          : avg < 60 * 60 * 1000
-            ? `${Math.round(avg / (60 * 1000))}m`
-            : avg < 24 * 60 * 60 * 1000
-              ? `${Math.round(avg / (60 * 60 * 1000))}h`
-              : `${Math.round(avg / MS_IN_DAY)}d`;
-      bestChannel = {
-        channel: bestChannelEntry.channel,
-        reason: `${bestChannelEntry.inbound} of ${bestChannelEntry.outbound} ${channelLabel}s got a reply within ${within}`,
-      };
-    }
-
-    // nextScheduledAction — earliest future {callback, task}.
-    let nextCallback: { at: number; description: string } | null = null;
-    for (const e of entries) {
-      if (e.source !== 'call') continue;
-      const m = (e.metadata ?? {}) as Record<string, unknown>;
-      const cbStr = m.callback_scheduled_date as string | null | undefined;
-      if (!cbStr) continue;
-      const t = new Date(cbStr).getTime();
-      if (Number.isNaN(t) || t <= now) continue;
-      if (!nextCallback || t < nextCallback.at) {
-        nextCallback = {
-          at: t,
-          description: `Callback: ${e.title || 'call'}${e.adminName ? ` (${e.adminName})` : ''}`,
-        };
-      }
-    }
-
-    let nextTask: { at: number; description: string } | null = null;
-    for (const raw of tasks) {
-      const t = raw as unknown as {
-        due_date?: string | null;
-        task_type?: string | null;
-        description?: string | null;
-      };
-      const dueStr = t.due_date;
-      if (!dueStr) continue;
-      const dt = new Date(dueStr).getTime();
-      if (Number.isNaN(dt) || dt <= now) continue;
-      const desc = (t.task_type ? `${t.task_type}: ` : '') + (t.description ?? 'Task due');
-      if (!nextTask || dt < nextTask.at) {
-        nextTask = { at: dt, description: desc };
-      }
-    }
-
-    let nextScheduledAction: DealActivityStats['nextScheduledAction'] = null;
-    if (nextCallback && (!nextTask || nextCallback.at <= nextTask.at)) {
-      nextScheduledAction = {
-        type: 'callback',
-        at: new Date(nextCallback.at).toISOString(),
-        description: nextCallback.description,
-      };
-    } else if (nextTask) {
-      nextScheduledAction = {
-        type: 'task',
-        at: new Date(nextTask.at).toISOString(),
-        description: nextTask.description,
-      };
-    }
-
-    return {
-      totalTouchpoints,
-      byChannel,
-      byDirection,
-      lastTouch,
-      bestChannel,
-      nextScheduledAction,
-      byRep,
-    };
+    if (!listingId) return EMPTY_DEAL_ACTIVITY_STATS;
+    return computeDealActivityStats(entries, tasks as unknown as ScheduledTaskLike[]);
   }, [entries, tasks, listingId]);
 
   return { stats, isLoading: entriesLoading || tasksLoading };

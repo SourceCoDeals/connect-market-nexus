@@ -1,10 +1,20 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Activity, Clock, Mic, FileText, FileCheck } from 'lucide-react';
+import {
+  Activity,
+  Clock,
+  Mic,
+  FileText,
+  FileCheck,
+  Search,
+  Users,
+  ListOrdered,
+} from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
   useUnifiedDealActivityEntries,
@@ -12,6 +22,7 @@ import {
   type FilterCategory,
   type UnifiedTimelineEntry,
 } from '@/hooks/use-unified-deal-activity-entries';
+import { ActivityDetailDrawer } from './ActivityDetailDrawer';
 
 const FILTER_TABS: { label: string; value: FilterCategory }[] = [
   { label: 'All', value: 'all' },
@@ -23,6 +34,8 @@ const FILTER_TABS: { label: string; value: FilterCategory }[] = [
   { label: 'System', value: 'system' },
 ];
 
+type GroupingMode = 'timeline' | 'by-contact';
+
 interface UnifiedDealTimelineProps {
   dealId: string;
   listingId: string;
@@ -30,12 +43,34 @@ interface UnifiedDealTimelineProps {
 
 export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelineProps) {
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('all');
+  const [grouping, setGrouping] = useState<GroupingMode>('timeline');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [drawerEntry, setDrawerEntry] = useState<UnifiedTimelineEntry | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // 200ms debounce — keeps the input responsive without re-filtering on
+  // every keystroke for large feeds.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim().toLowerCase()), 200);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   const { entries: allEntries, isLoading } = useUnifiedDealActivityEntries(dealId, listingId);
 
   const filteredEntries = useMemo(() => {
-    if (activeFilter === 'all') return allEntries;
-    return allEntries.filter((e) => e.category === activeFilter);
-  }, [allEntries, activeFilter]);
+    let list = allEntries;
+    if (activeFilter !== 'all') list = list.filter((e) => e.category === activeFilter);
+    if (debouncedSearch) {
+      list = list.filter((e) => {
+        const m = (e.metadata ?? {}) as Record<string, unknown>;
+        return [e.title, e.description, e.contactEmail, m.body_preview as string | undefined]
+          .filter(Boolean)
+          .some((s) => (s as string).toLowerCase().includes(debouncedSearch));
+      });
+    }
+    return list;
+  }, [allEntries, activeFilter, debouncedSearch]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<FilterCategory, number> = {
@@ -47,11 +82,33 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
       meetings: 0,
       system: 0,
     };
-    for (const e of allEntries) {
-      counts[e.category]++;
-    }
+    for (const e of allEntries) counts[e.category]++;
     return counts;
   }, [allEntries]);
+
+  const grouped = useMemo(() => {
+    if (grouping === 'timeline') return null;
+    const groups = new Map<string, { label: string; entries: UnifiedTimelineEntry[] }>();
+    for (const e of filteredEntries) {
+      const key = e.contactId || e.contactEmail || '__unknown__';
+      const label = e.contactEmail || e.contactId || 'No contact';
+      const g = groups.get(key);
+      if (g) g.entries.push(e);
+      else groups.set(key, { label, entries: [e] });
+    }
+    return Array.from(groups.entries())
+      .map(([key, value]) => ({ key, ...value }))
+      .sort((a, b) => b.entries.length - a.entries.length);
+  }, [filteredEntries, grouping]);
+
+  function openDetail(entry: UnifiedTimelineEntry) {
+    if (entry.source === 'deal_activity') {
+      const m = (entry.metadata as Record<string, unknown> | undefined) ?? {};
+      if (m.activity_type === 'follow_up') return;
+    }
+    setDrawerEntry(entry);
+    setDrawerOpen(true);
+  }
 
   if (isLoading) {
     return (
@@ -73,77 +130,158 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Unified Activity Timeline
-            {allEntries.length > 0 && (
-              <Badge variant="secondary" className="text-xs font-normal">
-                {allEntries.length}
-              </Badge>
-            )}
-          </CardTitle>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* Filter bar */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {FILTER_TABS.map((tab) => {
-            const count = categoryCounts[tab.value];
-            const isActive = activeFilter === tab.value;
-            return (
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Unified Activity Timeline
+              {allEntries.length > 0 && (
+                <Badge variant="secondary" className="text-xs font-normal">
+                  {allEntries.length}
+                </Badge>
+              )}
+            </CardTitle>
+            <div className="flex items-center gap-1">
               <Button
-                key={tab.value}
-                variant={isActive ? 'default' : 'outline'}
+                variant={grouping === 'timeline' ? 'default' : 'outline'}
                 size="sm"
-                className="text-xs h-7"
-                onClick={() => setActiveFilter(tab.value)}
+                className="h-7 text-xs"
+                onClick={() => setGrouping('timeline')}
               >
-                {tab.label}
-                {count > 0 && tab.value !== 'all' && (
-                  <Badge
-                    variant={isActive ? 'secondary' : 'outline'}
-                    className="ml-1.5 text-[10px] h-4 min-w-[16px] px-1"
-                  >
-                    {count}
-                  </Badge>
-                )}
+                <ListOrdered className="h-3.5 w-3.5 mr-1" />
+                Timeline
               </Button>
-            );
-          })}
-        </div>
-
-        {/* Timeline entries */}
-        {filteredEntries.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Activity className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">
-              {activeFilter === 'all'
-                ? 'No activity recorded yet'
-                : `No ${activeFilter} activity yet`}
-            </p>
-          </div>
-        ) : (
-          <ScrollArea className="h-[600px]">
-            <div className="space-y-3 pr-3">
-              {filteredEntries.map((entry) => (
-                <TimelineRow key={entry.id} entry={entry} />
-              ))}
+              <Button
+                variant={grouping === 'by-contact' ? 'default' : 'outline'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setGrouping('by-contact')}
+              >
+                <Users className="h-3.5 w-3.5 mr-1" />
+                By contact
+              </Button>
             </div>
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search subject, body, contact email..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-9 h-8 text-sm"
+            />
+          </div>
+
+          {/* Filter chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {FILTER_TABS.map((tab) => {
+              const count = categoryCounts[tab.value];
+              const isActive = activeFilter === tab.value;
+              return (
+                <Button
+                  key={tab.value}
+                  variant={isActive ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => setActiveFilter(tab.value)}
+                >
+                  {tab.label}
+                  {count > 0 && tab.value !== 'all' && (
+                    <Badge
+                      variant={isActive ? 'secondary' : 'outline'}
+                      className="ml-1.5 text-[10px] h-4 min-w-[16px] px-1"
+                    >
+                      {count}
+                    </Badge>
+                  )}
+                </Button>
+              );
+            })}
+          </div>
+
+          {/* Body */}
+          {filteredEntries.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Activity className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">
+                {activeFilter === 'all' && !debouncedSearch
+                  ? 'No activity recorded yet'
+                  : 'No matching activity'}
+              </p>
+            </div>
+          ) : grouped ? (
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-4 pr-3">
+                {grouped.map((g) => (
+                  <div key={g.key} className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" />
+                      {g.label}
+                      <Badge variant="secondary" className="text-[10px] font-normal">
+                        {g.entries.length}
+                      </Badge>
+                    </div>
+                    <div className="space-y-3">
+                      {g.entries.map((entry) => (
+                        <TimelineRow key={entry.id} entry={entry} onClick={openDetail} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-3 pr-3">
+                {filteredEntries.map((entry) => (
+                  <TimelineRow key={entry.id} entry={entry} onClick={openDetail} />
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+      <ActivityDetailDrawer entry={drawerEntry} open={drawerOpen} onOpenChange={setDrawerOpen} />
+    </>
   );
 }
 
-function TimelineRow({ entry }: { entry: UnifiedTimelineEntry }) {
+function TimelineRow({
+  entry,
+  onClick,
+}: {
+  entry: UnifiedTimelineEntry;
+  onClick: (e: UnifiedTimelineEntry) => void;
+}) {
   const m = (entry.metadata ?? {}) as Record<string, any>;
+  const isClickable =
+    entry.source !== 'deal_activity' || (m.activity_type as string | undefined) !== 'follow_up';
   return (
-    <div className="rounded-lg border p-3 space-y-1.5 bg-muted/30 hover:bg-muted/50 transition-colors">
+    <div
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={isClickable ? () => onClick(entry) : undefined}
+      onKeyDown={
+        isClickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick(entry);
+              }
+            }
+          : undefined
+      }
+      className={`rounded-lg border p-3 space-y-1.5 bg-muted/30 transition-colors ${
+        isClickable ? 'hover:bg-muted/50 cursor-pointer' : ''
+      }`}
+    >
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant="outline" className={`text-xs flex items-center gap-1 ${entry.iconColor}`}>
           {entry.icon}
@@ -178,7 +316,6 @@ function TimelineRow({ entry }: { entry: UnifiedTimelineEntry }) {
         </p>
       )}
 
-      {/* Rich detail for calls */}
       {entry.source === 'call' &&
         (m.duration || m.recording_url || m.recording_url_public || m.transcript_preview) && (
           <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -193,6 +330,7 @@ function TimelineRow({ entry }: { entry: UnifiedTimelineEntry }) {
                 href={m.recording_url_public || m.recording_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
                 className="flex items-center gap-1 text-primary hover:underline"
               >
                 <Mic className="h-3 w-3" />
@@ -208,7 +346,6 @@ function TimelineRow({ entry }: { entry: UnifiedTimelineEntry }) {
           </div>
         )}
 
-      {/* Rich detail for emails */}
       {entry.source === 'email' && (m.body_preview || m.has_attachments) && (
         <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
           {m.has_attachments && (

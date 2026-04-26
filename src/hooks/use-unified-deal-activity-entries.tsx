@@ -17,7 +17,7 @@
 // previously used by UnifiedDealTimeline).
 // ============================================================================
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Phone,
@@ -588,16 +588,48 @@ export function useUnifiedDealActivityEntries(
     smartleadReplies,
   ]);
 
+  const rowCounts = {
+    dealActivities: dealActivities.length,
+    calls: callActivities.length,
+    outlookEmails: emailHistory.length,
+    linkedin: linkedinHistory.length,
+    transcripts: transcripts.length,
+    smartleadReplies: smartleadReplies.length,
+  };
+
+  // DEV-only observability: structured log on each load so the timeline
+  // composition is trivially diagnoseable when an entry is missing from the
+  // feed. Logs once per change in any source — same dependency list as the
+  // entries memo.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (isLoading) return;
+    // eslint-disable-next-line no-console
+    console.debug('[useUnifiedDealActivityEntries]', {
+      listingId,
+      dealId,
+      ...rowCounts,
+      mergedRowCount: entries.length,
+    });
+    // We don't depend on rowCounts directly because it's a fresh object each
+    // render; the underlying lengths are already in the dep list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isLoading,
+    listingId,
+    dealId,
+    dealActivities.length,
+    callActivities.length,
+    emailHistory.length,
+    linkedinHistory.length,
+    transcripts.length,
+    smartleadReplies.length,
+    entries.length,
+  ]);
+
   return {
     entries,
     isLoading,
-    rowCounts: {
-      dealActivities: dealActivities.length,
-      calls: callActivities.length,
-      outlookEmails: emailHistory.length,
-      linkedin: linkedinHistory.length,
-      transcripts: transcripts.length,
-      smartleadReplies: smartleadReplies.length,
-    },
+    rowCounts,
   };
 }
