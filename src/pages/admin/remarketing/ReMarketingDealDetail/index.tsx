@@ -38,7 +38,7 @@ import { BuyerIntroductionPage } from '@/components/admin/deals/buyer-introducti
 import { ValuationTab } from './ValuationTab';
 import { UnifiedDealTimeline } from '@/components/remarketing/deal-detail/UnifiedDealTimeline';
 import { DealActivityStatsStrip } from '@/components/remarketing/deal-detail/DealActivityStatsStrip';
-import { LogManualCallDialog } from '@/components/remarketing/deal-detail/LogManualCallDialog';
+import { LogManualTouchDialog } from '@/components/remarketing/deal-detail/LogManualTouchDialog';
 import { DealSearchDialog } from '@/components/remarketing/deal-detail/DealSearchDialog';
 import { ClientPreviewDialog } from '@/components/remarketing/deal-detail/ClientPreviewDialog';
 
@@ -275,7 +275,7 @@ const ReMarketingDealDetail = () => {
           <div className="flex justify-end">
             <Button variant="outline" size="sm" onClick={() => setLogCallOpen(true)}>
               <Phone className="h-3.5 w-3.5 mr-1.5" />
-              Log Call
+              Log Touch
             </Button>
           </div>
           <DealActivityStatsStrip listingId={dealId!} />
@@ -287,7 +287,7 @@ const ReMarketingDealDetail = () => {
             primaryContactName={deal.main_contact_name}
           />
           <ListingNotesLog listingId={dealId!} />
-          <LogManualCallDialog
+          <LogManualTouchDialog
             open={logCallOpen}
             onOpenChange={setLogCallOpen}
             dealId={dealId}
