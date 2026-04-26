@@ -37,6 +37,7 @@ import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNot
 import { BuyerIntroductionPage } from '@/components/admin/deals/buyer-introductions/BuyerIntroductionPage';
 import { ValuationTab } from './ValuationTab';
 import { UnifiedDealTimeline } from '@/components/remarketing/deal-detail/UnifiedDealTimeline';
+import { DealActivityStatsStrip } from '@/components/remarketing/deal-detail/DealActivityStatsStrip';
 import { LogManualCallDialog } from '@/components/remarketing/deal-detail/LogManualCallDialog';
 import { DealSearchDialog } from '@/components/remarketing/deal-detail/DealSearchDialog';
 import { ClientPreviewDialog } from '@/components/remarketing/deal-detail/ClientPreviewDialog';
@@ -277,6 +278,7 @@ const ReMarketingDealDetail = () => {
               Log Call
             </Button>
           </div>
+          <DealActivityStatsStrip listingId={dealId!} />
           <CallScoreCard listingId={dealId!} />
           <UnifiedDealTimeline dealId={dealId!} listingId={dealId!} />
           <DealContactHistoryTab
