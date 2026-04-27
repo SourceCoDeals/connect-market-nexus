@@ -136,9 +136,17 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
           <span className="text-sm font-medium">{entry.label}</span>
           <Badge
             variant="outline"
-            className={`text-[10px] ${isLinkedIn ? 'border-blue-300 text-blue-800' : isEmail ? 'border-blue-200 text-blue-700' : 'border-green-200 text-green-700'}`}
+            className={`text-[10px] ${
+              isLinkedIn
+                ? 'border-blue-300 text-blue-800'
+                : isEmail
+                  ? 'border-blue-200 text-blue-700'
+                  : isMeeting
+                    ? 'border-purple-300 text-purple-700'
+                    : 'border-green-200 text-green-700'
+            }`}
           >
-            {isLinkedIn ? 'LinkedIn' : isEmail ? 'Email' : 'Call'}
+            {isLinkedIn ? 'LinkedIn' : isEmail ? 'Email' : isMeeting ? 'Meeting' : 'Call'}
           </Badge>
           {/* Call disposition */}
           {isCall && (entry.details.disposition_label || entry.details.phoneburner_status) && (
