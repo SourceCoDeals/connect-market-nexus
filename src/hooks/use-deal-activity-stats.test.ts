@@ -17,6 +17,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeDealActivityStats,
+  contactKeyOf,
   EMPTY_DEAL_ACTIVITY_STATS,
   entryChannel,
   entryDirection,
@@ -342,6 +343,128 @@ describe('computeDealActivityStats', () => {
       expect(stats.bestChannel?.channel).toBe('email');
       expect(stats.bestChannel?.reason).toMatch(/2 of 3 emails got a reply within/);
     });
+
+    it('pairs an inbound reply with the same-contact outbound, not the most recent outbound on the channel', () => {
+      // Two contacts on the same deal:
+      //   A: outbound at day 10, day 8, day 6
+      //   B: outbound at day 9    (more recent than A's day-8 outbound)
+      //   A: inbound at day 5     (1 day after A's most recent outbound on day 6)
+      //
+      // Without per-contact pairing, the inbound would pair with B's day-9
+      // outbound (most recent on the channel) → ~4-day delay.
+      // With per-contact pairing, the inbound pairs with A's day-6 outbound
+      // → exactly 1 day delay.
+      //
+      // Total channel outbound = 4 (3 to A + 1 to B) → ≥3 threshold met.
+      // Inbound = 1 → bestChannel fires; reason embeds avg delay so we can
+      // assert which pairing was used.
+      const ts = (offsetDays: number) => new Date(NOW - offsetDays * DAY).toISOString();
+      const stats = computeDealActivityStats(
+        [
+          entry({
+            id: 'a-out-1',
+            timestamp: ts(10),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-A',
+            metadata: { direction: 'outbound' },
+          }),
+          entry({
+            id: 'b-out-1',
+            timestamp: ts(9),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-B',
+            metadata: { direction: 'outbound' },
+          }),
+          entry({
+            id: 'a-out-2',
+            timestamp: ts(8),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-A',
+            metadata: { direction: 'outbound' },
+          }),
+          entry({
+            id: 'a-out-3',
+            timestamp: ts(6),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-A',
+            metadata: { direction: 'outbound' },
+          }),
+          entry({
+            id: 'a-in-1',
+            timestamp: ts(5),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-A',
+            metadata: { direction: 'inbound' },
+          }),
+        ],
+        [],
+        NOW,
+      );
+      // Sanity: counts unchanged by per-contact pairing.
+      expect(stats.bestChannel?.channel).toBe('email');
+      expect(stats.bestChannel?.reason).toMatch(/^1 of 4 emails got a reply within /);
+      // The fix: 1-day delay (paired with A's day-6 outbound), not ~4 days.
+      expect(stats.bestChannel?.reason).toContain('within 1d');
+      expect(stats.bestChannel?.reason).not.toContain('within 4d');
+      expect(stats.bestChannel?.reason).not.toContain('within 3d');
+    });
+
+    it('counts an inbound that has no matching prior outbound for that contact, but does not record a delay', () => {
+      // 3 outbounds to contact A → outbound count 3.
+      // 1 inbound from contact B → inbound count 1, but no A→B pairing
+      // so replyDelays is empty and avgDelayMs is null. The reason
+      // string should embed the null-format placeholder ("—") rather
+      // than wrongly pairing with one of A's outbounds.
+      const ts = (offsetDays: number) => new Date(NOW - offsetDays * DAY).toISOString();
+      const stats = computeDealActivityStats(
+        [
+          entry({
+            id: 'a-out-1',
+            timestamp: ts(10),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-A',
+            metadata: { direction: 'outbound' },
+          }),
+          entry({
+            id: 'a-out-2',
+            timestamp: ts(8),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-A',
+            metadata: { direction: 'outbound' },
+          }),
+          entry({
+            id: 'a-out-3',
+            timestamp: ts(6),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-A',
+            metadata: { direction: 'outbound' },
+          }),
+          entry({
+            id: 'b-in-1',
+            timestamp: ts(2),
+            source: 'email',
+            category: 'emails',
+            contactId: 'contact-B',
+            metadata: { direction: 'inbound' },
+          }),
+        ],
+        [],
+        NOW,
+      );
+      // Counts unchanged: bestChannel still fires.
+      expect(stats.bestChannel?.channel).toBe('email');
+      expect(stats.bestChannel?.reason).toMatch(/^1 of 3 emails got a reply within /);
+      // No delay recorded → avgDelayMs is null → format yields "—".
+      expect(stats.bestChannel?.reason).toContain('within —');
+    });
   });
 
   describe('nextScheduledAction', () => {
@@ -444,6 +567,22 @@ describe('helpers', () => {
     expect(entryDirection(entry({ metadata: { direction: 'inbound' } }))).toBe('inbound');
     expect(entryDirection(entry({ metadata: {} }))).toBeNull();
     expect(entryDirection(entry({ metadata: { direction: 'lateral' } }))).toBeNull();
+  });
+
+  it('contactKeyOf falls back contact_id → lowercased contact_email → null', () => {
+    // contact_id wins when present, regardless of email
+    expect(contactKeyOf(entry({ contactId: 'uuid-A', contactEmail: 'alex@x.com' }))).toBe('uuid-A');
+
+    // empty/missing contact_id → contact_email, lowercased
+    expect(contactKeyOf(entry({ contactId: null, contactEmail: 'Alex@X.com' }))).toBe('alex@x.com');
+
+    // both empty → null (entry is unpairable)
+    expect(contactKeyOf(entry({ contactId: null, contactEmail: null }))).toBeNull();
+    expect(contactKeyOf(entry({}))).toBeNull();
+
+    // empty-string contact_id is treated as missing (falsy) — falls through
+    // to contact_email
+    expect(contactKeyOf(entry({ contactId: '', contactEmail: 'sam@y.com' }))).toBe('sam@y.com');
   });
 
   it('lastTouchOutcome describes the touch by source', () => {

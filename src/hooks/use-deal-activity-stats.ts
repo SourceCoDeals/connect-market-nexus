@@ -85,6 +85,18 @@ export function entryDirection(e: UnifiedTimelineEntry): 'outbound' | 'inbound' 
   return null;
 }
 
+/**
+ * Stable identifier used for pairing outbound→inbound on the same channel.
+ * Falls back from contact_id (canonical) → lowercased contact_email
+ * (best-effort) → null (entry is unpairable; counted but never contributes
+ * to a reply-delay measurement).
+ */
+export function contactKeyOf(e: UnifiedTimelineEntry): string | null {
+  if (e.contactId) return e.contactId;
+  if (e.contactEmail) return e.contactEmail.toLowerCase();
+  return null;
+}
+
 export function lastTouchOutcome(e: UnifiedTimelineEntry): string {
   const m = (e.metadata ?? {}) as Record<string, unknown>;
   if (e.source === 'call') {
@@ -141,10 +153,18 @@ export function computeDealActivityStats(
   const ascending = [...entries].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
-  const lastOutbound: Record<'call' | 'email' | 'linkedin', number | null> = {
-    call: null,
-    email: null,
-    linkedin: null,
+
+  // lastOutbound is keyed by (channel, contactKey) so an inbound from contact
+  // A on email cannot be paired with an earlier outbound to contact B on the
+  // same channel. Without this, deals with multiple contacts produce
+  // misleading "got a reply within" averages — the delay would tend to
+  // collapse toward 0 as parallel conversations interleave. The reply
+  // *counts* (and therefore the winning channel) are unaffected by this
+  // change; only avgDelayMs gets stricter pairing.
+  const lastOutboundByContact: Record<'call' | 'email' | 'linkedin', Map<string, number>> = {
+    call: new Map(),
+    email: new Map(),
+    linkedin: new Map(),
   };
 
   for (const e of ascending) {
@@ -188,14 +208,26 @@ export function computeDealActivityStats(
               : null;
       if (rcKey) {
         const dir = entryDirection(e);
+        const contactKey = contactKeyOf(e);
         if (dir === 'outbound') {
           replyCounts[rcKey].outbound++;
-          lastOutbound[rcKey] = ts;
+          // Track the most recent outbound timestamp per contact on this
+          // channel. Outbounds without a contactKey can't be paired later
+          // (no anchor to match against), so we drop them from the map.
+          if (contactKey != null) {
+            lastOutboundByContact[rcKey].set(contactKey, ts);
+          }
         } else if (dir === 'inbound') {
           replyCounts[rcKey].inbound++;
-          const last = lastOutbound[rcKey];
-          if (last != null && ts >= last) {
-            replyCounts[rcKey].replyDelays.push(ts - last);
+          // Only record a delay if there's a prior outbound on the same
+          // channel AND same contactKey. Inbounds that can't be matched
+          // still count toward `inbound`; they just don't contribute to
+          // avgDelayMs.
+          if (contactKey != null) {
+            const last = lastOutboundByContact[rcKey].get(contactKey);
+            if (last != null && ts >= last) {
+              replyCounts[rcKey].replyDelays.push(ts - last);
+            }
           }
         }
       }
