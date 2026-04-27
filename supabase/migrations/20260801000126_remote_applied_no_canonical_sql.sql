@@ -1,0 +1,9 @@
+-- Placeholder for migration 20260801000126 which was applied to live Supabase via an
+-- out-of-band path (most likely a sibling fork — see project memory
+-- project_lovable_migration). The actual SQL is not preserved in this
+-- repository. The cumulative end-state is captured in
+-- 20260427000000_remote_schema_snapshot_2026-04-27.sql.
+--
+-- This file exists solely so `supabase migration repair` accepts the ID;
+-- it is marked `applied` in the registry on 2026-04-27 as part of the
+-- drift reconciliation. It is never executed.
