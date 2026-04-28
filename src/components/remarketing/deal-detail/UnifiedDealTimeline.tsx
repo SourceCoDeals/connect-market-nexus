@@ -120,12 +120,57 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
     return counts;
   }, [allEntries]);
 
+  // Audit item #17: lookup contact names for the by-contact grouping so
+  // labels read as "Sarah Chen — alex@buyerco.com" instead of bare emails.
+  const contactIdsInFeed = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of allEntries) {
+      if (e.contactId) ids.add(e.contactId);
+    }
+    return Array.from(ids);
+  }, [allEntries]);
+
+  const { data: contactNamesById } = useQuery({
+    queryKey: ['unified-timeline-contact-names', listingId, contactIdsInFeed.sort().join(',')],
+    queryFn: async (): Promise<Map<string, string>> => {
+      if (contactIdsInFeed.length === 0) return new Map();
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name')
+        .in('id', contactIdsInFeed);
+      const out = new Map<string, string>();
+      for (const c of (data ?? []) as Array<{
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+      }>) {
+        const full = `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim();
+        if (full) out.set(c.id, full);
+      }
+      return out;
+    },
+    enabled: contactIdsInFeed.length > 0 && grouping === 'by-contact',
+    staleTime: 5 * 60_000,
+  });
+
   const grouped = useMemo(() => {
     if (grouping === 'timeline') return null;
     const groups = new Map<string, { label: string; entries: UnifiedTimelineEntry[] }>();
     for (const e of filteredEntries) {
       const key = e.contactId || e.contactEmail || '__unknown__';
-      const label = e.contactEmail || e.contactId || 'No contact';
+      const name = e.contactId ? contactNamesById?.get(e.contactId) : undefined;
+      let label: string;
+      if (name && e.contactEmail) {
+        label = `${name} — ${e.contactEmail}`;
+      } else if (name) {
+        label = name;
+      } else if (e.contactEmail) {
+        label = e.contactEmail;
+      } else if (e.contactId) {
+        label = e.contactId;
+      } else {
+        label = 'No contact';
+      }
       const g = groups.get(key);
       if (g) g.entries.push(e);
       else groups.set(key, { label, entries: [e] });
@@ -133,7 +178,7 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
     return Array.from(groups.entries())
       .map(([key, value]) => ({ key, ...value }))
       .sort((a, b) => b.entries.length - a.entries.length);
-  }, [filteredEntries, grouping]);
+  }, [filteredEntries, grouping, contactNamesById]);
 
   function openDetail(entry: UnifiedTimelineEntry) {
     if (entry.source === 'deal_activity') {

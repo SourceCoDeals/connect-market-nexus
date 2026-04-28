@@ -822,8 +822,8 @@ export function LogManualTouchDialog({
           )}
         </div>
 
-        {/* Audit item #15 — attribution preview */}
-        {previewEnabled && touchType !== 'meeting' && (
+        {/* Audit item #15 — attribution preview (only fires for non-meeting touch types) */}
+        {previewEnabled && (
           <div className="px-1 pb-2">
             {previewFetching ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
