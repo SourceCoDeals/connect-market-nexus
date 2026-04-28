@@ -48,7 +48,7 @@ interface OutlookUnmatchedRow {
 
 export async function promoteOutlookToCanonical(
   row: OutlookUnmatchedRow,
-  dealId: string,
+  _dealId: string,
   listingId: string | null | undefined,
 ): Promise<PromotionResult> {
   // Resolve contact via the inbound participant address (NOT the mailbox owner).
