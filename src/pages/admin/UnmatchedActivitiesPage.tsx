@@ -41,6 +41,12 @@ import {
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import {
+  promoteOutlookToCanonical,
+  promoteSmartleadToCanonical,
+  promoteHeyReachToCanonical,
+  logDealActivityWithPromotion,
+} from '@/lib/unmatched-promotion';
 
 interface DealOption {
   id: string;
@@ -292,13 +298,20 @@ function UnmatchedCallsTab({ deals }: { deals: DealOption[] }) {
 interface UnmatchedOutlook {
   id: string;
   microsoft_message_id: string;
+  microsoft_conversation_id: string | null;
+  sourceco_user_id: string;
   direction: string;
   from_address: string;
   to_addresses: string[];
+  cc_addresses: string[] | null;
   subject: string | null;
+  body_html: string | null;
+  body_text: string | null;
   body_preview: string | null;
   sent_at: string;
   participant_emails: string[];
+  has_attachments: boolean | null;
+  attachment_metadata: unknown;
   match_attempt_count: number;
   created_at: string;
 }
@@ -312,7 +325,7 @@ function UnmatchedOutlookTab({ deals }: { deals: DealOption[] }) {
     queryFn: async () => {
       const { data, error } = await untypedFrom('outlook_unmatched_emails')
         .select(
-          'id, microsoft_message_id, direction, from_address, to_addresses, subject, body_preview, sent_at, participant_emails, match_attempt_count, created_at',
+          'id, microsoft_message_id, microsoft_conversation_id, sourceco_user_id, direction, from_address, to_addresses, cc_addresses, subject, body_html, body_text, body_preview, sent_at, participant_emails, has_attachments, attachment_metadata, match_attempt_count, created_at',
         )
         .is('matched_at', null)
         .order('sent_at', { ascending: false })
@@ -324,38 +337,53 @@ function UnmatchedOutlookTab({ deals }: { deals: DealOption[] }) {
   });
 
   const linkMutation = useMutation({
-    mutationFn: async ({ rowId, dealId }: { rowId: string; dealId: string }) => {
+    mutationFn: async ({
+      rowId,
+      dealId,
+      listingId,
+    }: {
+      rowId: string;
+      dealId: string;
+      listingId: string;
+    }) => {
+      const row = rows.find((r) => r.id === rowId);
+      if (!row) throw new Error('Row not found in cache');
+
+      // 1) Promote to canonical email_messages (best-effort).
+      const promotion = await promoteOutlookToCanonical(row, dealId, listingId);
+
+      // 2) Mark unmatched row resolved.
       const { error: updErr } = await untypedFrom('outlook_unmatched_emails')
         .update({ matched_at: new Date().toISOString() })
         .eq('id', rowId);
       if (updErr) throw updErr;
 
-      const row = rows.find((r) => r.id === rowId);
-      if (row) {
-        try {
-          await (supabase as any).rpc('log_deal_activity', {
-            p_deal_id: dealId,
-            p_activity_type: row.direction === 'outbound' ? 'email_sent' : 'email_received',
-            p_title: `Manually linked email: ${row.subject || `(no subject) — ${row.from_address}`}`,
-            p_description: row.body_preview || null,
-            p_admin_id: null,
-            p_metadata: {
-              outlook_unmatched_id: rowId,
-              microsoft_message_id: row.microsoft_message_id,
-              from_address: row.from_address,
-              to_addresses: row.to_addresses,
-              direction: row.direction,
-              linked_manually: true,
-            },
-          });
-        } catch (e) {
-          console.error('Failed to log deal activity:', e);
-        }
-      }
+      // 3) Log to deal_activities (always — even when canonical promotion failed).
+      await logDealActivityWithPromotion({
+        dealId,
+        activityType: row.direction === 'outbound' ? 'email_sent' : 'email_received',
+        title: `Manually linked email: ${row.subject || `(no subject) — ${row.from_address}`}`,
+        description: row.body_preview || null,
+        metadata: {
+          outlook_unmatched_id: rowId,
+          microsoft_message_id: row.microsoft_message_id,
+          from_address: row.from_address,
+          to_addresses: row.to_addresses,
+          direction: row.direction,
+          linked_manually: true,
+        },
+        promotion,
+      });
+
+      return promotion;
     },
-    onSuccess: () => {
+    onSuccess: (promotion) => {
       queryClient.invalidateQueries({ queryKey: ['unmatched-activities'] });
-      toast.success('Email linked to deal');
+      if (promotion.inserted) {
+        toast.success('Email linked — appears in deal feed and contact history');
+      } else {
+        toast.success(`Email linked to deal feed (no contact match — ${promotion.reason})`);
+      }
     },
     onError: (err) => toast.error(`Failed to link: ${(err as Error).message}`),
   });
@@ -398,8 +426,9 @@ function UnmatchedOutlookTab({ deals }: { deals: DealOption[] }) {
                   selected={selected[r.id] || ''}
                   onChange={(val) => setSelected((p) => ({ ...p, [r.id]: val }))}
                   onLink={() => {
-                    const [dId] = (selected[r.id] || '').split('::');
-                    if (dId) linkMutation.mutate({ rowId: r.id, dealId: dId });
+                    const [dId, lId] = (selected[r.id] || '').split('::');
+                    if (dId && lId)
+                      linkMutation.mutate({ rowId: r.id, dealId: dId, listingId: lId });
                   }}
                   pending={linkMutation.isPending}
                 />
@@ -424,10 +453,15 @@ interface UnmatchedSmartlead {
   lead_last_name: string | null;
   lead_company_name: string | null;
   direction: string | null;
+  from_address: string | null;
+  to_addresses: string[] | null;
   subject: string | null;
+  body_html: string | null;
   body_text: string | null;
   sent_at: string | null;
   event_type: string | null;
+  sequence_number: number | null;
+  raw_payload: unknown;
   match_attempt_count: number;
   created_at: string;
 }
@@ -441,7 +475,7 @@ function UnmatchedSmartleadTab({ deals }: { deals: DealOption[] }) {
     queryFn: async () => {
       const { data, error } = await untypedFrom('smartlead_unmatched_messages')
         .select(
-          'id, smartlead_message_id, smartlead_lead_id, smartlead_campaign_id, lead_email, lead_first_name, lead_last_name, lead_company_name, direction, subject, body_text, sent_at, event_type, match_attempt_count, created_at',
+          'id, smartlead_message_id, smartlead_lead_id, smartlead_campaign_id, lead_email, lead_first_name, lead_last_name, lead_company_name, direction, from_address, to_addresses, subject, body_html, body_text, sent_at, event_type, sequence_number, raw_payload, match_attempt_count, created_at',
         )
         .is('matched_at', null)
         .order('created_at', { ascending: false })
@@ -453,41 +487,56 @@ function UnmatchedSmartleadTab({ deals }: { deals: DealOption[] }) {
   });
 
   const linkMutation = useMutation({
-    mutationFn: async ({ rowId, dealId }: { rowId: string; dealId: string }) => {
+    mutationFn: async ({
+      rowId,
+      dealId,
+      listingId,
+    }: {
+      rowId: string;
+      dealId: string;
+      listingId: string;
+    }) => {
+      const row = rows.find((r) => r.id === rowId);
+      if (!row) throw new Error('Row not found in cache');
+
+      const promotion = await promoteSmartleadToCanonical(row, dealId, listingId);
+
       const { error: updErr } = await untypedFrom('smartlead_unmatched_messages')
         .update({ matched_at: new Date().toISOString() })
         .eq('id', rowId);
       if (updErr) throw updErr;
-      const row = rows.find((r) => r.id === rowId);
-      if (row) {
-        const leadName = [row.lead_first_name, row.lead_last_name].filter(Boolean).join(' ');
-        try {
-          await (supabase as any).rpc('log_deal_activity', {
-            p_deal_id: dealId,
-            p_activity_type: row.direction === 'outbound' ? 'email_sent' : 'buyer_response',
-            p_title: `Manually linked Smartlead: ${row.subject || leadName || row.lead_email || 'reply'}`,
-            p_description: row.body_text?.slice(0, 500) || null,
-            p_admin_id: null,
-            p_metadata: {
-              smartlead_unmatched_id: rowId,
-              smartlead_message_id: row.smartlead_message_id,
-              smartlead_lead_id: row.smartlead_lead_id,
-              smartlead_campaign_id: row.smartlead_campaign_id,
-              lead_email: row.lead_email,
-              lead_company: row.lead_company_name,
-              event_type: row.event_type,
-              direction: row.direction,
-              linked_manually: true,
-            },
-          });
-        } catch (e) {
-          console.error('Failed to log deal activity:', e);
-        }
-      }
+
+      const leadName = [row.lead_first_name, row.lead_last_name].filter(Boolean).join(' ');
+      await logDealActivityWithPromotion({
+        dealId,
+        activityType: row.direction === 'outbound' ? 'email_sent' : 'buyer_response',
+        title: `Manually linked Smartlead: ${row.subject || leadName || row.lead_email || 'reply'}`,
+        description: row.body_text?.slice(0, 500) || null,
+        metadata: {
+          smartlead_unmatched_id: rowId,
+          smartlead_message_id: row.smartlead_message_id,
+          smartlead_lead_id: row.smartlead_lead_id,
+          smartlead_campaign_id: row.smartlead_campaign_id,
+          lead_email: row.lead_email,
+          lead_company: row.lead_company_name,
+          event_type: row.event_type,
+          direction: row.direction,
+          linked_manually: true,
+        },
+        promotion,
+      });
+
+      return promotion;
     },
-    onSuccess: () => {
+    onSuccess: (promotion) => {
       queryClient.invalidateQueries({ queryKey: ['unmatched-activities'] });
-      toast.success('Smartlead message linked');
+      if (promotion.inserted) {
+        toast.success('Smartlead message linked — appears in deal feed and contact history');
+      } else {
+        toast.success(
+          `Smartlead message linked to deal feed (no contact match — ${promotion.reason})`,
+        );
+      }
     },
     onError: (err) => toast.error(`Failed to link: ${(err as Error).message}`),
   });
@@ -540,8 +589,9 @@ function UnmatchedSmartleadTab({ deals }: { deals: DealOption[] }) {
                     selected={selected[r.id] || ''}
                     onChange={(val) => setSelected((p) => ({ ...p, [r.id]: val }))}
                     onLink={() => {
-                      const [dId] = (selected[r.id] || '').split('::');
-                      if (dId) linkMutation.mutate({ rowId: r.id, dealId: dId });
+                      const [dId, lId] = (selected[r.id] || '').split('::');
+                      if (dId && lId)
+                        linkMutation.mutate({ rowId: r.id, dealId: dId, listingId: lId });
                     }}
                     pending={linkMutation.isPending}
                   />
@@ -568,11 +618,14 @@ interface UnmatchedHeyReach {
   lead_last_name: string | null;
   lead_company_name: string | null;
   direction: string | null;
+  from_linkedin_url: string | null;
+  to_linkedin_url: string | null;
   message_type: string | null;
   subject: string | null;
   body_text: string | null;
   sent_at: string | null;
   event_type: string | null;
+  raw_payload: unknown;
   match_attempt_count: number;
   created_at: string;
 }
@@ -586,7 +639,7 @@ function UnmatchedHeyReachTab({ deals }: { deals: DealOption[] }) {
     queryFn: async () => {
       const { data, error } = await untypedFrom('heyreach_unmatched_messages')
         .select(
-          'id, heyreach_message_id, heyreach_lead_id, heyreach_campaign_id, lead_linkedin_url, lead_email, lead_first_name, lead_last_name, lead_company_name, direction, message_type, subject, body_text, sent_at, event_type, match_attempt_count, created_at',
+          'id, heyreach_message_id, heyreach_lead_id, heyreach_campaign_id, lead_linkedin_url, lead_email, lead_first_name, lead_last_name, lead_company_name, direction, from_linkedin_url, to_linkedin_url, message_type, subject, body_text, sent_at, event_type, raw_payload, match_attempt_count, created_at',
         )
         .is('matched_at', null)
         .order('created_at', { ascending: false })
@@ -598,43 +651,58 @@ function UnmatchedHeyReachTab({ deals }: { deals: DealOption[] }) {
   });
 
   const linkMutation = useMutation({
-    mutationFn: async ({ rowId, dealId }: { rowId: string; dealId: string }) => {
+    mutationFn: async ({
+      rowId,
+      dealId,
+      listingId,
+    }: {
+      rowId: string;
+      dealId: string;
+      listingId: string;
+    }) => {
+      const row = rows.find((r) => r.id === rowId);
+      if (!row) throw new Error('Row not found in cache');
+
+      const promotion = await promoteHeyReachToCanonical(row, dealId, listingId);
+
       const { error: updErr } = await untypedFrom('heyreach_unmatched_messages')
         .update({ matched_at: new Date().toISOString() })
         .eq('id', rowId);
       if (updErr) throw updErr;
-      const row = rows.find((r) => r.id === rowId);
-      if (row) {
-        const leadName = [row.lead_first_name, row.lead_last_name].filter(Boolean).join(' ');
-        try {
-          await (supabase as any).rpc('log_deal_activity', {
-            p_deal_id: dealId,
-            p_activity_type: 'linkedin_message',
-            p_title: `Manually linked LinkedIn: ${leadName || row.lead_linkedin_url || row.lead_email || 'message'}`,
-            p_description: row.body_text?.slice(0, 500) || null,
-            p_admin_id: null,
-            p_metadata: {
-              heyreach_unmatched_id: rowId,
-              heyreach_message_id: row.heyreach_message_id,
-              heyreach_lead_id: row.heyreach_lead_id,
-              heyreach_campaign_id: row.heyreach_campaign_id,
-              lead_linkedin_url: row.lead_linkedin_url,
-              lead_email: row.lead_email,
-              lead_company: row.lead_company_name,
-              event_type: row.event_type,
-              message_type: row.message_type,
-              direction: row.direction,
-              linked_manually: true,
-            },
-          });
-        } catch (e) {
-          console.error('Failed to log deal activity:', e);
-        }
-      }
+
+      const leadName = [row.lead_first_name, row.lead_last_name].filter(Boolean).join(' ');
+      await logDealActivityWithPromotion({
+        dealId,
+        activityType: 'linkedin_message',
+        title: `Manually linked LinkedIn: ${leadName || row.lead_linkedin_url || row.lead_email || 'message'}`,
+        description: row.body_text?.slice(0, 500) || null,
+        metadata: {
+          heyreach_unmatched_id: rowId,
+          heyreach_message_id: row.heyreach_message_id,
+          heyreach_lead_id: row.heyreach_lead_id,
+          heyreach_campaign_id: row.heyreach_campaign_id,
+          lead_linkedin_url: row.lead_linkedin_url,
+          lead_email: row.lead_email,
+          lead_company: row.lead_company_name,
+          event_type: row.event_type,
+          message_type: row.message_type,
+          direction: row.direction,
+          linked_manually: true,
+        },
+        promotion,
+      });
+
+      return promotion;
     },
-    onSuccess: () => {
+    onSuccess: (promotion) => {
       queryClient.invalidateQueries({ queryKey: ['unmatched-activities'] });
-      toast.success('LinkedIn message linked');
+      if (promotion.inserted) {
+        toast.success('LinkedIn message linked — appears in deal feed and contact history');
+      } else {
+        toast.success(
+          `LinkedIn message linked to deal feed (no contact match — ${promotion.reason})`,
+        );
+      }
     },
     onError: (err) => toast.error(`Failed to link: ${(err as Error).message}`),
   });
@@ -689,8 +757,9 @@ function UnmatchedHeyReachTab({ deals }: { deals: DealOption[] }) {
                     selected={selected[r.id] || ''}
                     onChange={(val) => setSelected((p) => ({ ...p, [r.id]: val }))}
                     onLink={() => {
-                      const [dId] = (selected[r.id] || '').split('::');
-                      if (dId) linkMutation.mutate({ rowId: r.id, dealId: dId });
+                      const [dId, lId] = (selected[r.id] || '').split('::');
+                      if (dId && lId)
+                        linkMutation.mutate({ rowId: r.id, dealId: dId, listingId: lId });
                     }}
                     pending={linkMutation.isPending}
                   />
