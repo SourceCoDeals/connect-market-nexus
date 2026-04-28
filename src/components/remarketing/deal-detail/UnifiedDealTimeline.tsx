@@ -6,18 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Activity,
-  Clock,
-  Mic,
-  FileText,
-  FileCheck,
-  Search,
-  Users,
-  ListOrdered,
-  X,
-  Info,
-} from 'lucide-react';
+import { Activity, Clock, Mic, FileText, FileCheck, Search, Users, X, Info } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -228,31 +217,41 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
             <CardTitle className="text-lg flex items-center gap-2">
               <Activity className="h-5 w-5" />
               Unified Activity Timeline
-              {allEntries.length > 0 && (
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {allEntries.length}
-                </Badge>
-              )}
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <Button
-                variant={grouping === 'timeline' ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 text-xs"
+            {/* Audit item #5 — segmented control for grouping mode */}
+            <div
+              role="radiogroup"
+              aria-label="Grouping mode"
+              className="inline-flex items-center rounded-md border border-border bg-muted/40 p-0.5"
+            >
+              <button
+                type="button"
+                role="radio"
+                aria-checked={grouping === 'timeline'}
                 onClick={() => setGrouping('timeline')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
+                  grouping === 'timeline'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
-                <ListOrdered className="h-3.5 w-3.5 mr-1" />
+                <Clock className="h-3.5 w-3.5" />
                 Timeline
-              </Button>
-              <Button
-                variant={grouping === 'by-contact' ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 text-xs"
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={grouping === 'by-contact'}
                 onClick={() => setGrouping('by-contact')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
+                  grouping === 'by-contact'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
-                <Users className="h-3.5 w-3.5 mr-1" />
+                <Users className="h-3.5 w-3.5" />
                 By contact
-              </Button>
+              </button>
             </div>
           </div>
         </CardHeader>
@@ -294,14 +293,15 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
                   onClick={() => setActiveFilter(tab.value)}
                 >
                   {tab.label}
-                  {count > 0 && tab.value !== 'all' && (
-                    <Badge
-                      variant={isActive ? 'secondary' : 'outline'}
-                      className="ml-1.5 text-[10px] h-4 min-w-[16px] px-1"
-                    >
-                      {count}
-                    </Badge>
-                  )}
+                  {/* Audit item #4 — always show counts on every chip including 0 */}
+                  <Badge
+                    variant={isActive ? 'secondary' : 'outline'}
+                    className={`ml-1.5 text-[10px] h-4 min-w-[16px] px-1 ${
+                      count === 0 && !isActive ? 'opacity-50' : ''
+                    }`}
+                  >
+                    {count}
+                  </Badge>
                 </Button>
               );
             })}
