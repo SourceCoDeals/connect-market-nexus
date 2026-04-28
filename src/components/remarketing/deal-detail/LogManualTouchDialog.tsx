@@ -17,8 +17,8 @@
 // up in the deal's Activity feed — no silent loss.
 // ============================================================================
 
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Phone, Mail, Linkedin, Video } from 'lucide-react';
+import { Phone, Mail, Linkedin, Video, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { resolveContact } from '@/lib/activity-contact-resolution';
 import {
@@ -112,6 +112,51 @@ export function LogManualTouchDialog({
   const [attendees, setAttendees] = useState('');
   const [summary, setSummary] = useState('');
   const [meetingSource, setMeetingSource] = useState('other');
+
+  // Audit item #15: live attribution preview. As the user types
+  // contactEmail / linkedinUrl / contactName, debounce-resolve the contact
+  // and surface a green/amber pill above the submit button so they know
+  // whether the touch will land in canonical tables or fall back to
+  // deal_activities only.
+  const [debouncedEmail, setDebouncedEmail] = useState('');
+  const [debouncedLinkedinUrl, setDebouncedLinkedinUrl] = useState('');
+  const [debouncedContactName, setDebouncedContactName] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedEmail(contactEmail.trim());
+      setDebouncedLinkedinUrl(linkedinUrl.trim());
+      setDebouncedContactName(contactName.trim());
+    }, 300);
+    return () => clearTimeout(t);
+  }, [contactEmail, linkedinUrl, contactName]);
+
+  const previewEnabled =
+    (touchType === 'email' && debouncedEmail.length > 0) ||
+    (touchType === 'linkedin' &&
+      (debouncedEmail.length > 0 ||
+        debouncedLinkedinUrl.length > 0 ||
+        debouncedContactName.length > 0)) ||
+    (touchType === 'call' && debouncedEmail.length > 0);
+
+  const { data: attributionPreview, isFetching: previewFetching } = useQuery({
+    queryKey: [
+      'log-manual-touch-attribution',
+      touchType,
+      debouncedEmail,
+      debouncedLinkedinUrl,
+      debouncedContactName,
+      listingId,
+    ],
+    queryFn: async () =>
+      resolveContact({
+        email: debouncedEmail || null,
+        linkedinUrl: touchType === 'linkedin' ? debouncedLinkedinUrl || null : null,
+        contactName: debouncedContactName || null,
+        listingId: listingId ?? null,
+      }),
+    enabled: open && previewEnabled,
+    staleTime: 30_000,
+  });
 
   function resetForm() {
     setContactName(defaultContactName);
@@ -776,6 +821,39 @@ export function LogManualTouchDialog({
             </div>
           )}
         </div>
+
+        {/* Audit item #15 — attribution preview (only fires for non-meeting touch types) */}
+        {previewEnabled && (
+          <div className="px-1 pb-2">
+            {previewFetching ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Looking up contact…
+              </div>
+            ) : attributionPreview ? (
+              <div className="flex items-center gap-2 text-xs rounded-md border border-green-200 bg-green-50 text-green-800 px-3 py-2">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>
+                  Will attribute to <strong>this contact</strong>
+                  {attributionPreview.contactType ? ` (${attributionPreview.contactType})` : ''}
+                  {attributionPreview.source === 'fuzzy_primary'
+                    ? ' — matched by name (low confidence)'
+                    : attributionPreview.source === 'linkedin'
+                      ? ' — matched by LinkedIn URL'
+                      : ''}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 text-xs rounded-md border border-amber-200 bg-amber-50 text-amber-800 px-3 py-2">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  No matching contact found — touch will log to the deal feed only, not the
+                  canonical contact history.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

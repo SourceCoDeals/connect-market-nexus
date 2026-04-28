@@ -3,7 +3,7 @@
 // The monolithic sibling file ReMarketingDealDetail.tsx (1,675 lines) is ORPHANED.
 // AUDIT REF: CTO Audit February 2026
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -85,6 +85,19 @@ const ReMarketingDealDetail = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [clientPreviewOpen, setClientPreviewOpen] = useState(false);
   const [logCallOpen, setLogCallOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Audit item #2: DealActivityStatsStrip's "Next action" cell dispatches
+  // `deal-page-set-tab` when the next action is a task — switch tabs in
+  // response. The cell uses dispatchActivitySetFilter for callbacks.
+  useEffect(() => {
+    function onSetTab(e: Event) {
+      const detail = (e as CustomEvent<{ value: string }>).detail;
+      if (detail?.value) setActiveTab(detail.value);
+    }
+    window.addEventListener('deal-page-set-tab', onSetTab);
+    return () => window.removeEventListener('deal-page-set-tab', onSetTab);
+  }, []);
 
   if (dealLoading) {
     return (
@@ -204,7 +217,7 @@ const ReMarketingDealDetail = () => {
         onOpenChange={setClientPreviewOpen}
       />
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className={cn('grid w-full', isValuationDeal ? 'grid-cols-7' : 'grid-cols-6')}>
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
