@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/select';
 import { Phone, Mail, Linkedin, Video } from 'lucide-react';
 import { toast } from 'sonner';
+import { resolveContact } from '@/lib/activity-contact-resolution';
 
 type TouchType = 'call' | 'email' | 'linkedin' | 'meeting';
 
@@ -231,26 +232,15 @@ export function LogManualTouchDialog({
     }
     const now = new Date().toISOString();
 
-    let contactId: string | null = null;
-    if (listingId) {
-      const { data: c } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('listing_id', listingId)
-        .ilike('email', contactEmail)
-        .limit(1)
-        .maybeSingle();
-      contactId = c?.id ?? null;
-    }
-    if (!contactId) {
-      const { data: c } = await supabase
-        .from('contacts')
-        .select('id')
-        .ilike('email', contactEmail)
-        .limit(1)
-        .maybeSingle();
-      contactId = c?.id ?? null;
-    }
+    // Resolution: email match first (listing-scoped → global), then fuzzy
+    // primary-contact fallback if the user typed in a name.
+    const resolved = await resolveContact({
+      email: contactEmail,
+      contactName,
+      listingId,
+    });
+    const contactId = resolved?.contactId ?? null;
+    const lowConfidence = resolved?.source === 'fuzzy_primary';
 
     const {
       data: { user },
@@ -273,6 +263,12 @@ export function LogManualTouchDialog({
       else console.error('email_messages manual insert failed:', emErr);
     }
 
+    if (!contactId) {
+      toast.warning('Email logged without contact attribution — no matching contact found');
+    } else if (lowConfidence) {
+      toast.info('Email attributed via name match (low confidence)');
+    }
+
     await logDealActivity(
       direction === 'outbound' ? 'email_sent' : 'email_received',
       `Manual email: ${subject || `(no subject) — ${contactEmail}`}`,
@@ -281,6 +277,7 @@ export function LogManualTouchDialog({
         manual_entry: true,
         canonical_inserted: inserted,
         contact_resolved: !!contactId,
+        contact_resolution_source: resolved?.source ?? null,
         contact_email: contactEmail,
         contact_name: contactName,
         direction,
@@ -293,24 +290,25 @@ export function LogManualTouchDialog({
     const now = new Date().toISOString();
     const eventType = direction === 'outbound' ? 'message_sent' : 'message_received';
 
-    let contactId: string | null = null;
-    if (listingId) {
-      const { data: c } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('listing_id', listingId)
-        .order('is_primary', { ascending: false, nullsFirst: false })
-        .limit(1)
-        .maybeSingle();
-      contactId = c?.id ?? null;
-    }
+    // Resolution: email → linkedin URL → fuzzy primary, in that order.
+    // The pre-fix path always returned the listing's primary contact regardless
+    // of who the message was actually with. This now matches the user's intent.
+    const resolved = await resolveContact({
+      email: contactEmail,
+      linkedinUrl,
+      contactName,
+      listingId,
+    });
+    const contactId = resolved?.contactId ?? null;
+    const lowConfidence = resolved?.source === 'fuzzy_primary';
 
     let inserted = false;
     if (contactId) {
+      const contactType = resolved?.contactType === 'seller' ? 'seller' : 'buyer';
       const { error: hmErr } = await untypedFrom('heyreach_messages').insert({
         contact_id: contactId,
-        contact_type: 'seller',
-        listing_id: listingId,
+        contact_type: contactType,
+        listing_id: contactType === 'seller' ? listingId : null,
         direction,
         from_linkedin_url: direction === 'outbound' ? null : linkedinUrl || null,
         to_linkedin_url: direction === 'outbound' ? linkedinUrl || null : null,
@@ -325,6 +323,14 @@ export function LogManualTouchDialog({
       else console.error('heyreach_messages manual insert failed:', hmErr);
     }
 
+    if (!contactId) {
+      toast.warning(
+        'LinkedIn message logged without contact attribution — no matching contact found',
+      );
+    } else if (lowConfidence) {
+      toast.info('LinkedIn message attributed via name match (low confidence)');
+    }
+
     await logDealActivity(
       'linkedin_message',
       `Manual LinkedIn: ${contactName || linkedinUrl || 'contact'}`,
@@ -332,6 +338,8 @@ export function LogManualTouchDialog({
       {
         manual_entry: true,
         canonical_inserted: inserted,
+        contact_resolved: !!contactId,
+        contact_resolution_source: resolved?.source ?? null,
         linkedin_url: linkedinUrl,
         contact_name: contactName,
         direction,
