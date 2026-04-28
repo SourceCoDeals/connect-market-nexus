@@ -246,8 +246,10 @@ export function DealContactHistoryTab({
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Unified email (SmartLead), call (PhoneBurner), and LinkedIn (HeyReach) history for all
-          contacts associated with this deal
+          Across all deals at this firm: shows touches with each contact wherever they appear,
+          including activity from other listings the same buyer firm is involved with. Counts may
+          exceed the deal's own activity feed for that reason — the timeline above
+          (UnifiedDealTimeline) is listing-scoped only.
         </p>
       </CardHeader>
       <CardContent>
