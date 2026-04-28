@@ -271,7 +271,17 @@ const ReMarketingDealDetail = () => {
           Email tab as well. DealContactHistoryTab is kept below for the
           per-contact breakdown (each contact's history in its own sub-tab).
         */}
-        <TabsContent value="contact-activity" className="space-y-6">
+        {/*
+          forceMount on the Contact Activity tab so filter chips, search
+          input, by-contact toggle, drawer state, and scroll position
+          persist across tab switches (matching the Data Room tab's
+          pattern below). Audit finding UC #16.
+        */}
+        <TabsContent
+          value="contact-activity"
+          forceMount
+          className="space-y-6 data-[state=inactive]:hidden"
+        >
           <div className="flex justify-end">
             <Button variant="outline" size="sm" onClick={() => setLogCallOpen(true)}>
               <Phone className="h-3.5 w-3.5 mr-1.5" />
