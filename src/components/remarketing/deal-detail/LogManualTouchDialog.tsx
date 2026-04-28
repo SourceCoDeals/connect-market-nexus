@@ -41,6 +41,11 @@ import {
 import { Phone, Mail, Linkedin, Video } from 'lucide-react';
 import { toast } from 'sonner';
 import { resolveContact } from '@/lib/activity-contact-resolution';
+import {
+  decideTaskLifecycle,
+  type CallOutcome,
+  type OpenFollowUpTask,
+} from '@/lib/auto-task-lifecycle';
 
 type TouchType = 'call' | 'email' | 'linkedin' | 'meeting';
 
@@ -197,33 +202,143 @@ export function LogManualTouchDialog({
       },
     );
 
-    if (dealId && (outcome === 'voicemail' || outcome === 'no_answer' || outcome === 'callback')) {
-      const daysOffset = outcome === 'callback' ? 1 : 3;
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + daysOffset);
+    if (dealId) {
       try {
-        await (supabase as any).from('daily_standup_tasks').insert({
-          title:
-            outcome === 'callback'
-              ? `Callback: ${contactName || contactEmail || 'contact'}`
-              : `Follow up (${outcome.replace('_', ' ')}): ${contactName || contactEmail || 'contact'}`,
-          task_type: outcome === 'callback' ? 'schedule_call' : 'follow_up_with_buyer',
+        await runAutoTaskLifecycle({
+          outcome: outcome as CallOutcome,
+          dealId,
+          listingId,
+          contactName,
+          contactEmail,
+        });
+      } catch (e) {
+        console.error('Auto-task lifecycle failed:', e);
+      }
+    }
+  }
+
+  /**
+   * Implements Fix #4 — auto-task dedup/supersede on the same (deal_id,
+   * contact-key) scope. Defers the decision to the pure
+   * decideTaskLifecycle helper, then runs the resulting writes.
+   */
+  async function runAutoTaskLifecycle(args: {
+    outcome: CallOutcome;
+    dealId: string;
+    listingId?: string | null;
+    contactName?: string | null;
+    contactEmail?: string | null;
+  }) {
+    const {
+      outcome: callOutcome,
+      dealId: dId,
+      listingId: lId,
+      contactName: cName,
+      contactEmail: cEmail,
+    } = args;
+
+    // Find the matching contact_id so we can scope the open-tasks lookup.
+    const resolved = await resolveContact({
+      email: cEmail,
+      contactName: cName,
+      listingId: lId,
+    });
+
+    // Pull open follow-up-with-buyer tasks for this deal scoped to the same
+    // contact (or all of this deal's open follow-ups if contact didn't resolve).
+    let openTasksQuery = (supabase as any)
+      .from('daily_standup_tasks')
+      .select('id, task_type, status, due_date, metadata, secondary_entity_id')
+      .eq('deal_id', dId)
+      .eq('task_type', 'follow_up_with_buyer')
+      .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue', 'snoozed']);
+    if (resolved?.contactId) {
+      // Tasks created with a contact reference will have secondary_entity_id =
+      // contact_id. If pre-fix tasks weren't tagged this way, we widen below.
+      openTasksQuery = openTasksQuery.eq('secondary_entity_id', resolved.contactId);
+    }
+    const { data: openTasksData } = await openTasksQuery;
+    const openTasks = (openTasksData ?? []) as OpenFollowUpTask[];
+
+    const decision = decideTaskLifecycle(callOutcome, openTasks);
+
+    if (decision.action === 'none') return;
+
+    if (decision.action === 'create' || decision.action === 'supersede_and_create') {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + decision.due_offset_days);
+      const callOutcomeLabel =
+        CALL_OUTCOMES.find((o) => o.value === callOutcome)?.label || callOutcome;
+      const title =
+        decision.task_type === 'schedule_call'
+          ? `Callback: ${cName || cEmail || 'contact'}`
+          : `Follow up (${callOutcome.replace('_', ' ')}): ${cName || cEmail || 'contact'}`;
+      const description = `Auto-created from manual call log. Contact: ${cName || 'Unknown'}${cEmail ? ` (${cEmail})` : ''}. Outcome: ${callOutcomeLabel}.`;
+
+      const { data: insertedTask, error: insErr } = await (supabase as any)
+        .from('daily_standup_tasks')
+        .insert({
+          title,
+          task_type: decision.task_type,
           status: 'pending',
-          priority: connected ? 'high' : 'medium',
-          priority_score: connected ? 80 : 50,
+          priority: decision.priority,
+          priority_score: decision.priority === 'high' ? 80 : 50,
           due_date: dueDate.toISOString().split('T')[0],
           entity_type: 'deal',
-          entity_id: dealId,
-          deal_id: dealId,
+          entity_id: dId,
+          deal_id: dId,
+          secondary_entity_id: resolved?.contactId ?? null,
+          secondary_entity_type: resolved?.contactId ? 'contact' : null,
           auto_generated: true,
           generation_source: 'manual_call',
           source: 'system',
-          description: `Auto-created from manual call log. Contact: ${contactName || 'Unknown'}${contactEmail ? ` (${contactEmail})` : ''}. Outcome: ${CALL_OUTCOMES.find((o) => o.value === outcome)?.label || outcome}.`,
-        });
-      } catch (e) {
-        console.error('Failed to create follow-up task:', e);
+          description,
+          metadata: { generated_from: 'manual_call', voicemail_count: 0 },
+        })
+        .select('id')
+        .single();
+      if (insErr) {
+        console.error('Auto-task insert failed:', insErr);
+        return;
       }
+
+      if (decision.action === 'supersede_and_create' && insertedTask?.id) {
+        await supersedeTasks(
+          decision.supersede_task_ids,
+          insertedTask.id,
+          decision.supersede_reason,
+        );
+      }
+    } else if (decision.action === 'update_existing') {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + decision.new_due_offset_days);
+      const { error: updErr } = await (supabase as any)
+        .from('daily_standup_tasks')
+        .update({
+          due_date: dueDate.toISOString().split('T')[0],
+          metadata: { voicemail_count: decision.new_voicemail_count },
+        })
+        .eq('id', decision.task_id);
+      if (updErr) console.error('Auto-task update (dedup) failed:', updErr);
+    } else if (decision.action === 'supersede_only') {
+      await supersedeTasks(decision.supersede_task_ids, null, decision.supersede_reason);
     }
+  }
+
+  async function supersedeTasks(
+    taskIds: string[],
+    supersededByTaskId: string | null,
+    reason: string,
+  ) {
+    if (taskIds.length === 0) return;
+    const metadata = supersededByTaskId
+      ? { superseded_by_task_id: supersededByTaskId, superseded_reason: reason }
+      : { superseded_reason: reason };
+    const { error } = await (supabase as any)
+      .from('daily_standup_tasks')
+      .update({ status: 'superseded', metadata })
+      .in('id', taskIds);
+    if (error) console.error('Failed to supersede tasks:', error);
   }
 
   async function logEmail() {
