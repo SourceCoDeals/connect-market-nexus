@@ -14,6 +14,8 @@ interface DealSearchDialogProps {
   listingId?: string;
 }
 
+import { dispatchActivityJump } from '@/lib/activity-events';
+
 interface SearchResult {
   /** The raw uuid from the underlying source row (no source-prefix). */
   id?: string;
@@ -23,12 +25,6 @@ interface SearchResult {
   timestamp: string;
   metadata: Record<string, unknown>;
 }
-
-/**
- * Custom event consumed by UnifiedDealTimeline. Keep in sync with
- * UnifiedDealTimeline.tsx's ACTIVITY_SEARCH_JUMP_EVENT.
- */
-const ACTIVITY_SEARCH_JUMP_EVENT = 'activity-search-jump';
 
 const SOURCE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   transcript: {
@@ -242,14 +238,10 @@ export function DealSearchDialog({ open, onOpenChange, dealId, listingId }: Deal
                             // Defer the dispatch so the dialog has a tick to unmount
                             // before UnifiedDealTimeline scrolls + opens its drawer.
                             setTimeout(() => {
-                              window.dispatchEvent(
-                                new CustomEvent(ACTIVITY_SEARCH_JUMP_EVENT, {
-                                  detail: {
-                                    rawId: result.id,
-                                    source: result.source,
-                                  },
-                                }),
-                              );
+                              dispatchActivityJump({
+                                rawId: result.id,
+                                source: result.source,
+                              });
                             }, 50);
                           }
                         : undefined;

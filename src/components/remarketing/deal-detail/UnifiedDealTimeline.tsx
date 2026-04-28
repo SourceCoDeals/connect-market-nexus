@@ -28,19 +28,12 @@ import {
 } from '@/hooks/use-unified-deal-activity-entries';
 import { ActivityDetailDrawer } from './ActivityDetailDrawer';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-/**
- * Custom event bridge: DealSearchDialog dispatches this with the entry id;
- * UnifiedDealTimeline subscribes and scrolls + opens the drawer (Fix #5).
- * Decouples the two components without lifting state to ReMarketingDealDetail.
- */
-const ACTIVITY_SEARCH_JUMP_EVENT = 'activity-search-jump';
-export interface ActivitySearchJumpDetail {
-  entryId: string;
-  /** Original raw id from the FTS hit (no `call-`/`email-` etc. prefix). */
-  rawId?: string;
-  source?: string;
-}
+import {
+  ACTIVITY_SEARCH_JUMP_EVENT,
+  ACTIVITY_SET_FILTER_EVENT,
+  type ActivitySearchJumpDetail,
+  type ActivitySetFilterDetail,
+} from '@/lib/activity-events';
 
 const FILTER_TABS: { label: string; value: FilterCategory }[] = [
   { label: 'All', value: 'all' },
@@ -192,8 +185,20 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       openDetail(target);
     }
+    function onSetFilter(e: Event) {
+      const detail = (e as CustomEvent<ActivitySetFilterDetail>).detail;
+      if (!detail) return;
+      setActiveFilter(detail.filter);
+      if (detail.clearSearch) {
+        setSearchInput('');
+      }
+    }
     window.addEventListener(ACTIVITY_SEARCH_JUMP_EVENT, onJump);
-    return () => window.removeEventListener(ACTIVITY_SEARCH_JUMP_EVENT, onJump);
+    window.addEventListener(ACTIVITY_SET_FILTER_EVENT, onSetFilter);
+    return () => {
+      window.removeEventListener(ACTIVITY_SEARCH_JUMP_EVENT, onJump);
+      window.removeEventListener(ACTIVITY_SET_FILTER_EVENT, onSetFilter);
+    };
   }, [allEntries]);
 
   if (isLoading) {
