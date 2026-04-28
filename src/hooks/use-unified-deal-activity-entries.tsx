@@ -38,6 +38,7 @@ import {
 import type { ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useDealActivities } from '@/hooks/admin/use-deal-activities';
+import { CHANNEL_THEME } from '@/lib/activity-channel-theme';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -77,37 +78,37 @@ interface TypeConfig {
 const ACTIVITY_TYPE_CONFIG: Record<string, TypeConfig> = {
   call_completed: {
     icon: <Phone className="h-3.5 w-3.5" />,
-    color: 'bg-blue-50 text-blue-700 border-blue-200',
+    color: CHANNEL_THEME.call.badgeClass,
     category: 'calls',
   },
   call_made: {
     icon: <Phone className="h-3.5 w-3.5" />,
-    color: 'bg-blue-50 text-blue-700 border-blue-200',
+    color: CHANNEL_THEME.call.badgeClass,
     category: 'calls',
   },
   email_sent: {
     icon: <Mail className="h-3.5 w-3.5" />,
-    color: 'bg-green-50 text-green-700 border-green-200',
+    color: CHANNEL_THEME.email.badgeClass,
     category: 'emails',
   },
   email_received: {
     icon: <Mail className="h-3.5 w-3.5" />,
-    color: 'bg-green-50 text-green-700 border-green-200',
+    color: CHANNEL_THEME.email.badgeClass,
     category: 'emails',
   },
   buyer_response: {
     icon: <Mail className="h-3.5 w-3.5" />,
-    color: 'bg-green-50 text-green-700 border-green-200',
+    color: CHANNEL_THEME.email.badgeClass,
     category: 'emails',
   },
   linkedin_message: {
     icon: <Linkedin className="h-3.5 w-3.5" />,
-    color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    color: CHANNEL_THEME.linkedin.badgeClass,
     category: 'linkedin',
   },
   linkedin_connection: {
     icon: <Linkedin className="h-3.5 w-3.5" />,
-    color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    color: CHANNEL_THEME.linkedin.badgeClass,
     category: 'linkedin',
   },
   task_created: {
@@ -147,17 +148,17 @@ const ACTIVITY_TYPE_CONFIG: Record<string, TypeConfig> = {
   },
   transcript_linked: {
     icon: <Video className="h-3.5 w-3.5" />,
-    color: 'bg-teal-50 text-teal-700 border-teal-200',
+    color: CHANNEL_THEME.meeting.badgeClass,
     category: 'meetings',
   },
   meeting_linked: {
     icon: <Video className="h-3.5 w-3.5" />,
-    color: 'bg-teal-50 text-teal-700 border-teal-200',
+    color: CHANNEL_THEME.meeting.badgeClass,
     category: 'meetings',
   },
   meeting_summary_generated: {
     icon: <Video className="h-3.5 w-3.5" />,
-    color: 'bg-teal-50 text-teal-700 border-teal-200',
+    color: CHANNEL_THEME.meeting.badgeClass,
     category: 'meetings',
   },
   enrichment_completed: {
@@ -446,7 +447,7 @@ export function useUnifiedDealActivityEntries(
         source: 'call',
         category: 'calls',
         icon: config.icon ?? <Phone className="h-3.5 w-3.5" />,
-        iconColor: 'bg-blue-50 text-blue-700 border-blue-200',
+        iconColor: CHANNEL_THEME.call.badgeClass,
         title: c.disposition_label || getActivityLabel(activityType),
         description: c.disposition_notes || null,
         metadata: {
@@ -473,10 +474,7 @@ export function useUnifiedDealActivityEntries(
         source: 'email',
         category: 'emails',
         icon: <Mail className="h-3.5 w-3.5" />,
-        iconColor:
-          e.direction === 'inbound'
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            : 'bg-green-50 text-green-700 border-green-200',
+        iconColor: CHANNEL_THEME.email.badgeClass,
         title: e.subject || '(No subject)',
         description:
           e.direction === 'outbound'
@@ -523,7 +521,7 @@ export function useUnifiedDealActivityEntries(
         source: 'linkedin',
         category: 'linkedin',
         icon: <Linkedin className="h-3.5 w-3.5" />,
-        iconColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        iconColor: CHANNEL_THEME.linkedin.badgeClass,
         title: LI_LABELS[l.event_type] || l.event_type?.replace(/_/g, ' ') || 'LinkedIn Activity',
         description: l.lead_email || l.lead_linkedin_url || null,
         metadata: {
@@ -543,7 +541,7 @@ export function useUnifiedDealActivityEntries(
         source: 'transcript',
         category: 'meetings',
         icon: <Video className="h-3.5 w-3.5" />,
-        iconColor: 'bg-teal-50 text-teal-700 border-teal-200',
+        iconColor: CHANNEL_THEME.meeting.badgeClass,
         title: t.title || 'Transcript linked',
         description: t.summary || null,
         metadata: { type: t.transcript_type },
@@ -562,7 +560,7 @@ export function useUnifiedDealActivityEntries(
         source: 'email',
         category: 'emails',
         icon: <Mail className="h-3.5 w-3.5" />,
-        iconColor: 'bg-green-50 text-green-700 border-green-200',
+        iconColor: CHANNEL_THEME.email.badgeClass,
         title: `${leadName || s.from_email || 'Lead'} — ${catLabel}`,
         description: replyText ? replyText.slice(0, 200) : s.subject || 'Smartlead reply',
         metadata: {

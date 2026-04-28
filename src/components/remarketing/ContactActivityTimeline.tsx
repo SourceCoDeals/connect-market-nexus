@@ -41,6 +41,7 @@ import {
   filterByDateRange,
   type DateRangeValue,
 } from '@/components/remarketing/deal-detail/useContactHistory';
+import { channelThemeFor, CHANNEL_THEME } from '@/lib/activity-channel-theme';
 
 // ── Icon + color config for email events ──
 
@@ -105,16 +106,23 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
   const isCall = entry.channel === 'call';
   const isMeeting = entry.channel === 'meeting';
 
-  const iconConfig = isMeeting
-    ? { icon: Video, color: 'text-purple-600 bg-purple-50' }
+  // Channel-specific event icons (event-type aware) but always using
+  // CHANNEL_THEME's color for the channel — see activity-channel-theme.ts.
+  const themeKey = isMeeting
+    ? CHANNEL_THEME.meeting
     : isLinkedIn
-      ? LINKEDIN_ICON_MAP[entry.event_type] || { icon: Linkedin, color: 'text-blue-700 bg-blue-50' }
+      ? CHANNEL_THEME.linkedin
       : isEmail
-        ? EMAIL_ICON_MAP[entry.event_type] || {
-            icon: Mail,
-            color: 'text-muted-foreground bg-muted',
-          }
-        : getCallIcon(entry.event_type, entry.details.call_outcome || null);
+        ? CHANNEL_THEME.email
+        : CHANNEL_THEME.call;
+  const eventIcon = isMeeting
+    ? Video
+    : isLinkedIn
+      ? (LINKEDIN_ICON_MAP[entry.event_type]?.icon ?? Linkedin)
+      : isEmail
+        ? (EMAIL_ICON_MAP[entry.event_type]?.icon ?? Mail)
+        : getCallIcon(entry.event_type, entry.details.call_outcome || null).icon;
+  const iconConfig = { icon: eventIcon, color: themeKey.badgeClass };
 
   const Icon = iconConfig.icon;
 
@@ -136,17 +144,9 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
           <span className="text-sm font-medium">{entry.label}</span>
           <Badge
             variant="outline"
-            className={`text-[10px] ${
-              isLinkedIn
-                ? 'border-blue-300 text-blue-800'
-                : isEmail
-                  ? 'border-blue-200 text-blue-700'
-                  : isMeeting
-                    ? 'border-purple-300 text-purple-700'
-                    : 'border-green-200 text-green-700'
-            }`}
+            className={`text-[10px] ${channelThemeFor({ channel: entry.channel }).badgeClass}`}
           >
-            {isLinkedIn ? 'LinkedIn' : isEmail ? 'Email' : isMeeting ? 'Meeting' : 'Call'}
+            {channelThemeFor({ channel: entry.channel }).label}
           </Badge>
           {/* Call disposition */}
           {isCall && (entry.details.disposition_label || entry.details.phoneburner_status) && (
