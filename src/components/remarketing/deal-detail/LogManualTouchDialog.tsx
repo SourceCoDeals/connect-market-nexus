@@ -17,8 +17,8 @@
 // up in the deal's Activity feed — no silent loss.
 // ============================================================================
 
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -38,8 +38,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Phone, Mail, Linkedin, Video } from 'lucide-react';
+import { Phone, Mail, Linkedin, Video, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { resolveContact } from '@/lib/activity-contact-resolution';
+import {
+  decideTaskLifecycle,
+  type CallOutcome,
+  type OpenFollowUpTask,
+} from '@/lib/auto-task-lifecycle';
 
 type TouchType = 'call' | 'email' | 'linkedin' | 'meeting';
 
@@ -106,6 +112,51 @@ export function LogManualTouchDialog({
   const [attendees, setAttendees] = useState('');
   const [summary, setSummary] = useState('');
   const [meetingSource, setMeetingSource] = useState('other');
+
+  // Audit item #15: live attribution preview. As the user types
+  // contactEmail / linkedinUrl / contactName, debounce-resolve the contact
+  // and surface a green/amber pill above the submit button so they know
+  // whether the touch will land in canonical tables or fall back to
+  // deal_activities only.
+  const [debouncedEmail, setDebouncedEmail] = useState('');
+  const [debouncedLinkedinUrl, setDebouncedLinkedinUrl] = useState('');
+  const [debouncedContactName, setDebouncedContactName] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedEmail(contactEmail.trim());
+      setDebouncedLinkedinUrl(linkedinUrl.trim());
+      setDebouncedContactName(contactName.trim());
+    }, 300);
+    return () => clearTimeout(t);
+  }, [contactEmail, linkedinUrl, contactName]);
+
+  const previewEnabled =
+    (touchType === 'email' && debouncedEmail.length > 0) ||
+    (touchType === 'linkedin' &&
+      (debouncedEmail.length > 0 ||
+        debouncedLinkedinUrl.length > 0 ||
+        debouncedContactName.length > 0)) ||
+    (touchType === 'call' && debouncedEmail.length > 0);
+
+  const { data: attributionPreview, isFetching: previewFetching } = useQuery({
+    queryKey: [
+      'log-manual-touch-attribution',
+      touchType,
+      debouncedEmail,
+      debouncedLinkedinUrl,
+      debouncedContactName,
+      listingId,
+    ],
+    queryFn: async () =>
+      resolveContact({
+        email: debouncedEmail || null,
+        linkedinUrl: touchType === 'linkedin' ? debouncedLinkedinUrl || null : null,
+        contactName: debouncedContactName || null,
+        listingId: listingId ?? null,
+      }),
+    enabled: open && previewEnabled,
+    staleTime: 30_000,
+  });
 
   function resetForm() {
     setContactName(defaultContactName);
@@ -196,33 +247,143 @@ export function LogManualTouchDialog({
       },
     );
 
-    if (dealId && (outcome === 'voicemail' || outcome === 'no_answer' || outcome === 'callback')) {
-      const daysOffset = outcome === 'callback' ? 1 : 3;
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + daysOffset);
+    if (dealId) {
       try {
-        await (supabase as any).from('daily_standup_tasks').insert({
-          title:
-            outcome === 'callback'
-              ? `Callback: ${contactName || contactEmail || 'contact'}`
-              : `Follow up (${outcome.replace('_', ' ')}): ${contactName || contactEmail || 'contact'}`,
-          task_type: outcome === 'callback' ? 'schedule_call' : 'follow_up_with_buyer',
+        await runAutoTaskLifecycle({
+          outcome: outcome as CallOutcome,
+          dealId,
+          listingId,
+          contactName,
+          contactEmail,
+        });
+      } catch (e) {
+        console.error('Auto-task lifecycle failed:', e);
+      }
+    }
+  }
+
+  /**
+   * Implements Fix #4 — auto-task dedup/supersede on the same (deal_id,
+   * contact-key) scope. Defers the decision to the pure
+   * decideTaskLifecycle helper, then runs the resulting writes.
+   */
+  async function runAutoTaskLifecycle(args: {
+    outcome: CallOutcome;
+    dealId: string;
+    listingId?: string | null;
+    contactName?: string | null;
+    contactEmail?: string | null;
+  }) {
+    const {
+      outcome: callOutcome,
+      dealId: dId,
+      listingId: lId,
+      contactName: cName,
+      contactEmail: cEmail,
+    } = args;
+
+    // Find the matching contact_id so we can scope the open-tasks lookup.
+    const resolved = await resolveContact({
+      email: cEmail,
+      contactName: cName,
+      listingId: lId,
+    });
+
+    // Pull open follow-up-with-buyer tasks for this deal scoped to the same
+    // contact (or all of this deal's open follow-ups if contact didn't resolve).
+    let openTasksQuery = (supabase as any)
+      .from('daily_standup_tasks')
+      .select('id, task_type, status, due_date, metadata, secondary_entity_id')
+      .eq('deal_id', dId)
+      .eq('task_type', 'follow_up_with_buyer')
+      .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue', 'snoozed']);
+    if (resolved?.contactId) {
+      // Tasks created with a contact reference will have secondary_entity_id =
+      // contact_id. If pre-fix tasks weren't tagged this way, we widen below.
+      openTasksQuery = openTasksQuery.eq('secondary_entity_id', resolved.contactId);
+    }
+    const { data: openTasksData } = await openTasksQuery;
+    const openTasks = (openTasksData ?? []) as OpenFollowUpTask[];
+
+    const decision = decideTaskLifecycle(callOutcome, openTasks);
+
+    if (decision.action === 'none') return;
+
+    if (decision.action === 'create' || decision.action === 'supersede_and_create') {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + decision.due_offset_days);
+      const callOutcomeLabel =
+        CALL_OUTCOMES.find((o) => o.value === callOutcome)?.label || callOutcome;
+      const title =
+        decision.task_type === 'schedule_call'
+          ? `Callback: ${cName || cEmail || 'contact'}`
+          : `Follow up (${callOutcome.replace('_', ' ')}): ${cName || cEmail || 'contact'}`;
+      const description = `Auto-created from manual call log. Contact: ${cName || 'Unknown'}${cEmail ? ` (${cEmail})` : ''}. Outcome: ${callOutcomeLabel}.`;
+
+      const { data: insertedTask, error: insErr } = await (supabase as any)
+        .from('daily_standup_tasks')
+        .insert({
+          title,
+          task_type: decision.task_type,
           status: 'pending',
-          priority: connected ? 'high' : 'medium',
-          priority_score: connected ? 80 : 50,
+          priority: decision.priority,
+          priority_score: decision.priority === 'high' ? 80 : 50,
           due_date: dueDate.toISOString().split('T')[0],
           entity_type: 'deal',
-          entity_id: dealId,
-          deal_id: dealId,
+          entity_id: dId,
+          deal_id: dId,
+          secondary_entity_id: resolved?.contactId ?? null,
+          secondary_entity_type: resolved?.contactId ? 'contact' : null,
           auto_generated: true,
           generation_source: 'manual_call',
           source: 'system',
-          description: `Auto-created from manual call log. Contact: ${contactName || 'Unknown'}${contactEmail ? ` (${contactEmail})` : ''}. Outcome: ${CALL_OUTCOMES.find((o) => o.value === outcome)?.label || outcome}.`,
-        });
-      } catch (e) {
-        console.error('Failed to create follow-up task:', e);
+          description,
+          metadata: { generated_from: 'manual_call', voicemail_count: 0 },
+        })
+        .select('id')
+        .single();
+      if (insErr) {
+        console.error('Auto-task insert failed:', insErr);
+        return;
       }
+
+      if (decision.action === 'supersede_and_create' && insertedTask?.id) {
+        await supersedeTasks(
+          decision.supersede_task_ids,
+          insertedTask.id,
+          decision.supersede_reason,
+        );
+      }
+    } else if (decision.action === 'update_existing') {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + decision.new_due_offset_days);
+      const { error: updErr } = await (supabase as any)
+        .from('daily_standup_tasks')
+        .update({
+          due_date: dueDate.toISOString().split('T')[0],
+          metadata: { voicemail_count: decision.new_voicemail_count },
+        })
+        .eq('id', decision.task_id);
+      if (updErr) console.error('Auto-task update (dedup) failed:', updErr);
+    } else if (decision.action === 'supersede_only') {
+      await supersedeTasks(decision.supersede_task_ids, null, decision.supersede_reason);
     }
+  }
+
+  async function supersedeTasks(
+    taskIds: string[],
+    supersededByTaskId: string | null,
+    reason: string,
+  ) {
+    if (taskIds.length === 0) return;
+    const metadata = supersededByTaskId
+      ? { superseded_by_task_id: supersededByTaskId, superseded_reason: reason }
+      : { superseded_reason: reason };
+    const { error } = await (supabase as any)
+      .from('daily_standup_tasks')
+      .update({ status: 'superseded', metadata })
+      .in('id', taskIds);
+    if (error) console.error('Failed to supersede tasks:', error);
   }
 
   async function logEmail() {
@@ -231,26 +392,15 @@ export function LogManualTouchDialog({
     }
     const now = new Date().toISOString();
 
-    let contactId: string | null = null;
-    if (listingId) {
-      const { data: c } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('listing_id', listingId)
-        .ilike('email', contactEmail)
-        .limit(1)
-        .maybeSingle();
-      contactId = c?.id ?? null;
-    }
-    if (!contactId) {
-      const { data: c } = await supabase
-        .from('contacts')
-        .select('id')
-        .ilike('email', contactEmail)
-        .limit(1)
-        .maybeSingle();
-      contactId = c?.id ?? null;
-    }
+    // Resolution: email match first (listing-scoped → global), then fuzzy
+    // primary-contact fallback if the user typed in a name.
+    const resolved = await resolveContact({
+      email: contactEmail,
+      contactName,
+      listingId,
+    });
+    const contactId = resolved?.contactId ?? null;
+    const lowConfidence = resolved?.source === 'fuzzy_primary';
 
     const {
       data: { user },
@@ -273,6 +423,12 @@ export function LogManualTouchDialog({
       else console.error('email_messages manual insert failed:', emErr);
     }
 
+    if (!contactId) {
+      toast.warning('Email logged without contact attribution — no matching contact found');
+    } else if (lowConfidence) {
+      toast.info('Email attributed via name match (low confidence)');
+    }
+
     await logDealActivity(
       direction === 'outbound' ? 'email_sent' : 'email_received',
       `Manual email: ${subject || `(no subject) — ${contactEmail}`}`,
@@ -281,6 +437,7 @@ export function LogManualTouchDialog({
         manual_entry: true,
         canonical_inserted: inserted,
         contact_resolved: !!contactId,
+        contact_resolution_source: resolved?.source ?? null,
         contact_email: contactEmail,
         contact_name: contactName,
         direction,
@@ -293,24 +450,25 @@ export function LogManualTouchDialog({
     const now = new Date().toISOString();
     const eventType = direction === 'outbound' ? 'message_sent' : 'message_received';
 
-    let contactId: string | null = null;
-    if (listingId) {
-      const { data: c } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('listing_id', listingId)
-        .order('is_primary', { ascending: false, nullsFirst: false })
-        .limit(1)
-        .maybeSingle();
-      contactId = c?.id ?? null;
-    }
+    // Resolution: email → linkedin URL → fuzzy primary, in that order.
+    // The pre-fix path always returned the listing's primary contact regardless
+    // of who the message was actually with. This now matches the user's intent.
+    const resolved = await resolveContact({
+      email: contactEmail,
+      linkedinUrl,
+      contactName,
+      listingId,
+    });
+    const contactId = resolved?.contactId ?? null;
+    const lowConfidence = resolved?.source === 'fuzzy_primary';
 
     let inserted = false;
     if (contactId) {
+      const contactType = resolved?.contactType === 'seller' ? 'seller' : 'buyer';
       const { error: hmErr } = await untypedFrom('heyreach_messages').insert({
         contact_id: contactId,
-        contact_type: 'seller',
-        listing_id: listingId,
+        contact_type: contactType,
+        listing_id: contactType === 'seller' ? listingId : null,
         direction,
         from_linkedin_url: direction === 'outbound' ? null : linkedinUrl || null,
         to_linkedin_url: direction === 'outbound' ? linkedinUrl || null : null,
@@ -325,6 +483,14 @@ export function LogManualTouchDialog({
       else console.error('heyreach_messages manual insert failed:', hmErr);
     }
 
+    if (!contactId) {
+      toast.warning(
+        'LinkedIn message logged without contact attribution — no matching contact found',
+      );
+    } else if (lowConfidence) {
+      toast.info('LinkedIn message attributed via name match (low confidence)');
+    }
+
     await logDealActivity(
       'linkedin_message',
       `Manual LinkedIn: ${contactName || linkedinUrl || 'contact'}`,
@@ -332,6 +498,8 @@ export function LogManualTouchDialog({
       {
         manual_entry: true,
         canonical_inserted: inserted,
+        contact_resolved: !!contactId,
+        contact_resolution_source: resolved?.source ?? null,
         linkedin_url: linkedinUrl,
         contact_name: contactName,
         direction,
@@ -653,6 +821,39 @@ export function LogManualTouchDialog({
             </div>
           )}
         </div>
+
+        {/* Audit item #15 — attribution preview (only fires for non-meeting touch types) */}
+        {previewEnabled && (
+          <div className="px-1 pb-2">
+            {previewFetching ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Looking up contact…
+              </div>
+            ) : attributionPreview ? (
+              <div className="flex items-center gap-2 text-xs rounded-md border border-green-200 bg-green-50 text-green-800 px-3 py-2">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>
+                  Will attribute to <strong>this contact</strong>
+                  {attributionPreview.contactType ? ` (${attributionPreview.contactType})` : ''}
+                  {attributionPreview.source === 'fuzzy_primary'
+                    ? ' — matched by name (low confidence)'
+                    : attributionPreview.source === 'linkedin'
+                      ? ' — matched by LinkedIn URL'
+                      : ''}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 text-xs rounded-md border border-amber-200 bg-amber-50 text-amber-800 px-3 py-2">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  No matching contact found — touch will log to the deal feed only, not the
+                  canonical contact history.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

@@ -14,7 +14,11 @@ interface DealSearchDialogProps {
   listingId?: string;
 }
 
+import { dispatchActivityJump } from '@/lib/activity-events';
+
 interface SearchResult {
+  /** The raw uuid from the underlying source row (no source-prefix). */
+  id?: string;
   source: string;
   title: string;
   snippet: string;
@@ -226,33 +230,64 @@ export function DealSearchDialog({ open, onOpenChange, dealId, listingId }: Deal
                       {config.icon}
                       {config.label} ({items.length})
                     </div>
-                    {items.map((result, idx) => (
-                      <div
-                        key={`${source}-${idx}`}
-                        className="rounded-lg border p-3 hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Badge
-                              variant="outline"
-                              className={`shrink-0 text-[10px] ${config.color}`}
-                            >
-                              {config.icon}
-                              <span className="ml-1">{config.label}</span>
-                            </Badge>
-                            <span className="text-sm font-medium truncate">{result.title}</span>
+                    {items.map((result, idx) => {
+                      const canDeepLink = !!result.id;
+                      const onClickResult = canDeepLink
+                        ? () => {
+                            onOpenChange(false);
+                            // Defer the dispatch so the dialog has a tick to unmount
+                            // before UnifiedDealTimeline scrolls + opens its drawer.
+                            setTimeout(() => {
+                              dispatchActivityJump({
+                                rawId: result.id,
+                                source: result.source,
+                              });
+                            }, 50);
+                          }
+                        : undefined;
+                      return (
+                        <div
+                          key={`${source}-${idx}`}
+                          role={canDeepLink ? 'button' : undefined}
+                          tabIndex={canDeepLink ? 0 : undefined}
+                          onClick={onClickResult}
+                          onKeyDown={
+                            canDeepLink
+                              ? (e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    onClickResult?.();
+                                  }
+                                }
+                              : undefined
+                          }
+                          className={`rounded-lg border p-3 transition-colors ${
+                            canDeepLink ? 'hover:bg-accent/50 cursor-pointer' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Badge
+                                variant="outline"
+                                className={`shrink-0 text-[10px] ${config.color}`}
+                              >
+                                {config.icon}
+                                <span className="ml-1">{config.label}</span>
+                              </Badge>
+                              <span className="text-sm font-medium truncate">{result.title}</span>
+                            </div>
+                            {result.timestamp && (
+                              <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                {format(new Date(result.timestamp), 'MMM d, yyyy h:mm a')}
+                              </span>
+                            )}
                           </div>
-                          {result.timestamp && (
-                            <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                              {format(new Date(result.timestamp), 'MMM d, yyyy h:mm a')}
-                            </span>
-                          )}
+                          <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                            <HighlightedSnippet text={result.snippet} query={query} />
+                          </p>
                         </div>
-                        <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed line-clamp-3">
-                          <HighlightedSnippet text={result.snippet} query={query} />
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}

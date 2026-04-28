@@ -1,21 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Activity,
-  Clock,
-  Mic,
-  FileText,
-  FileCheck,
-  Search,
-  Users,
-  ListOrdered,
-} from 'lucide-react';
+import { Activity, Clock, Mic, FileText, FileCheck, Search, Users, X, Info } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useUnifiedDealActivityEntries,
   getActivityLabel,
@@ -23,6 +16,13 @@ import {
   type UnifiedTimelineEntry,
 } from '@/hooks/use-unified-deal-activity-entries';
 import { ActivityDetailDrawer } from './ActivityDetailDrawer';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  ACTIVITY_SEARCH_JUMP_EVENT,
+  ACTIVITY_SET_FILTER_EVENT,
+  type ActivitySearchJumpDetail,
+  type ActivitySetFilterDetail,
+} from '@/lib/activity-events';
 
 const FILTER_TABS: { label: string; value: FilterCategory }[] = [
   { label: 'All', value: 'all' },
@@ -52,25 +52,59 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
   // 200ms debounce — keeps the input responsive without re-filtering on
   // every keystroke for large feeds.
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchInput.trim().toLowerCase()), 200);
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 200);
     return () => clearTimeout(t);
   }, [searchInput]);
 
   const { entries: allEntries, isLoading } = useUnifiedDealActivityEntries(dealId, listingId);
 
+  // FTS via search-deal-history edge function — fires for queries ≥3 chars.
+  // For < 3 chars we fall back to the prior client-side substring filter.
+  const ftsEnabled = debouncedSearch.length >= 3;
+  const { data: ftsRawIds } = useQuery({
+    queryKey: ['unified-timeline-fts', listingId, debouncedSearch],
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await supabase.functions.invoke('search-deal-history', {
+        body: { query: debouncedSearch, listing_id: listingId, limit: 200 },
+      });
+      if (error) {
+        console.warn('FTS search failed; falling back to client-side substring', error);
+        return new Set();
+      }
+      const ids = ((data as { results?: Array<{ id?: string }> } | undefined)?.results ?? [])
+        .map((r) => r.id)
+        .filter((x): x is string => !!x);
+      return new Set(ids);
+    },
+    enabled: ftsEnabled && !!listingId,
+    staleTime: 60_000,
+  });
+
   const filteredEntries = useMemo(() => {
     let list = allEntries;
     if (activeFilter !== 'all') list = list.filter((e) => e.category === activeFilter);
     if (debouncedSearch) {
-      list = list.filter((e) => {
+      const lower = debouncedSearch.toLowerCase();
+      const substringFilter = (e: UnifiedTimelineEntry) => {
         const m = (e.metadata ?? {}) as Record<string, unknown>;
         return [e.title, e.description, e.contactEmail, m.body_preview as string | undefined]
           .filter(Boolean)
-          .some((s) => (s as string).toLowerCase().includes(debouncedSearch));
-      });
+          .some((s) => (s as string).toLowerCase().includes(lower));
+      };
+      if (ftsEnabled && ftsRawIds && ftsRawIds.size > 0) {
+        // Intersect FTS hits (matched on server-side full-text) with currently-loaded
+        // entries. The entry id has a source-prefix (e.g. `call-<uuid>`); strip it
+        // before comparing against the FTS raw uuid.
+        list = list.filter((e) => {
+          const rawId = e.id.replace(/^[a-z]+-/i, '');
+          return ftsRawIds.has(rawId) || substringFilter(e);
+        });
+      } else {
+        list = list.filter(substringFilter);
+      }
     }
     return list;
-  }, [allEntries, activeFilter, debouncedSearch]);
+  }, [allEntries, activeFilter, debouncedSearch, ftsEnabled, ftsRawIds]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<FilterCategory, number> = {
@@ -86,12 +120,57 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
     return counts;
   }, [allEntries]);
 
+  // Audit item #17: lookup contact names for the by-contact grouping so
+  // labels read as "Sarah Chen — alex@buyerco.com" instead of bare emails.
+  const contactIdsInFeed = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of allEntries) {
+      if (e.contactId) ids.add(e.contactId);
+    }
+    return Array.from(ids);
+  }, [allEntries]);
+
+  const { data: contactNamesById } = useQuery({
+    queryKey: ['unified-timeline-contact-names', listingId, contactIdsInFeed.sort().join(',')],
+    queryFn: async (): Promise<Map<string, string>> => {
+      if (contactIdsInFeed.length === 0) return new Map();
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name')
+        .in('id', contactIdsInFeed);
+      const out = new Map<string, string>();
+      for (const c of (data ?? []) as Array<{
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+      }>) {
+        const full = `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim();
+        if (full) out.set(c.id, full);
+      }
+      return out;
+    },
+    enabled: contactIdsInFeed.length > 0 && grouping === 'by-contact',
+    staleTime: 5 * 60_000,
+  });
+
   const grouped = useMemo(() => {
     if (grouping === 'timeline') return null;
     const groups = new Map<string, { label: string; entries: UnifiedTimelineEntry[] }>();
     for (const e of filteredEntries) {
       const key = e.contactId || e.contactEmail || '__unknown__';
-      const label = e.contactEmail || e.contactId || 'No contact';
+      const name = e.contactId ? contactNamesById?.get(e.contactId) : undefined;
+      let label: string;
+      if (name && e.contactEmail) {
+        label = `${name} — ${e.contactEmail}`;
+      } else if (name) {
+        label = name;
+      } else if (e.contactEmail) {
+        label = e.contactEmail;
+      } else if (e.contactId) {
+        label = e.contactId;
+      } else {
+        label = 'No contact';
+      }
       const g = groups.get(key);
       if (g) g.entries.push(e);
       else groups.set(key, { label, entries: [e] });
@@ -99,7 +178,7 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
     return Array.from(groups.entries())
       .map(([key, value]) => ({ key, ...value }))
       .sort((a, b) => b.entries.length - a.entries.length);
-  }, [filteredEntries, grouping]);
+  }, [filteredEntries, grouping, contactNamesById]);
 
   function openDetail(entry: UnifiedTimelineEntry) {
     if (entry.source === 'deal_activity') {
@@ -109,6 +188,52 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
     setDrawerEntry(entry);
     setDrawerOpen(true);
   }
+
+  // Refs for deep-link scroll-into-view (Fix #5).
+  const entryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const setEntryRef = (id: string) => (el: HTMLDivElement | null) => {
+    if (el) entryRefs.current.set(id, el);
+    else entryRefs.current.delete(id);
+  };
+
+  // Subscribe to deep-link events from DealSearchDialog. Match the event's
+  // entryId / rawId against currently-loaded entries; if found, scroll +
+  // open the drawer. If not (e.g. entry hasn't been loaded into the merged
+  // feed yet), no-op silently.
+  useEffect(() => {
+    function onJump(e: Event) {
+      const detail = (e as CustomEvent<ActivitySearchJumpDetail>).detail;
+      if (!detail) return;
+      const candidates: UnifiedTimelineEntry[] = [];
+      if (detail.entryId) {
+        const direct = allEntries.find((x) => x.id === detail.entryId);
+        if (direct) candidates.push(direct);
+      }
+      if (candidates.length === 0 && detail.rawId) {
+        const matched = allEntries.find((x) => x.id.replace(/^[a-z]+-/i, '') === detail.rawId);
+        if (matched) candidates.push(matched);
+      }
+      const target = candidates[0];
+      if (!target) return;
+      const el = entryRefs.current.get(target.id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      openDetail(target);
+    }
+    function onSetFilter(e: Event) {
+      const detail = (e as CustomEvent<ActivitySetFilterDetail>).detail;
+      if (!detail) return;
+      setActiveFilter(detail.filter);
+      if (detail.clearSearch) {
+        setSearchInput('');
+      }
+    }
+    window.addEventListener(ACTIVITY_SEARCH_JUMP_EVENT, onJump);
+    window.addEventListener(ACTIVITY_SET_FILTER_EVENT, onSetFilter);
+    return () => {
+      window.removeEventListener(ACTIVITY_SEARCH_JUMP_EVENT, onJump);
+      window.removeEventListener(ACTIVITY_SET_FILTER_EVENT, onSetFilter);
+    };
+  }, [allEntries]);
 
   if (isLoading) {
     return (
@@ -137,45 +262,66 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
             <CardTitle className="text-lg flex items-center gap-2">
               <Activity className="h-5 w-5" />
               Unified Activity Timeline
-              {allEntries.length > 0 && (
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {allEntries.length}
-                </Badge>
-              )}
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <Button
-                variant={grouping === 'timeline' ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 text-xs"
+            {/* Audit item #5 — segmented control for grouping mode */}
+            <div
+              role="radiogroup"
+              aria-label="Grouping mode"
+              className="inline-flex items-center rounded-md border border-border bg-muted/40 p-0.5"
+            >
+              <button
+                type="button"
+                role="radio"
+                aria-checked={grouping === 'timeline'}
                 onClick={() => setGrouping('timeline')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
+                  grouping === 'timeline'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
-                <ListOrdered className="h-3.5 w-3.5 mr-1" />
+                <Clock className="h-3.5 w-3.5" />
                 Timeline
-              </Button>
-              <Button
-                variant={grouping === 'by-contact' ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 text-xs"
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={grouping === 'by-contact'}
                 onClick={() => setGrouping('by-contact')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
+                  grouping === 'by-contact'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
-                <Users className="h-3.5 w-3.5 mr-1" />
+                <Users className="h-3.5 w-3.5" />
                 By contact
-              </Button>
+              </button>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Search */}
+          {/* Search — full-text via search-deal-history edge function for ≥3 chars,
+              client-side substring for shorter queries */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search subject, body, contact email..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-9 h-8 text-sm"
+              className="pl-9 pr-9 h-8 text-sm"
             />
+            {searchInput && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setSearchInput('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded hover:bg-muted text-muted-foreground inline-flex items-center justify-center"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Filter chips */}
@@ -192,14 +338,15 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
                   onClick={() => setActiveFilter(tab.value)}
                 >
                   {tab.label}
-                  {count > 0 && tab.value !== 'all' && (
-                    <Badge
-                      variant={isActive ? 'secondary' : 'outline'}
-                      className="ml-1.5 text-[10px] h-4 min-w-[16px] px-1"
-                    >
-                      {count}
-                    </Badge>
-                  )}
+                  {/* Audit item #4 — always show counts on every chip including 0 */}
+                  <Badge
+                    variant={isActive ? 'secondary' : 'outline'}
+                    className={`ml-1.5 text-[10px] h-4 min-w-[16px] px-1 ${
+                      count === 0 && !isActive ? 'opacity-50' : ''
+                    }`}
+                  >
+                    {count}
+                  </Badge>
                 </Button>
               );
             })}
@@ -226,10 +373,26 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
                       <Badge variant="secondary" className="text-[10px] font-normal">
                         {g.entries.length}
                       </Badge>
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            On this deal: shows touches recorded on this listing only. Per-contact
+                            history below shows firm-wide activity.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                     <div className="space-y-3">
                       {g.entries.map((entry) => (
-                        <TimelineRow key={entry.id} entry={entry} onClick={openDetail} />
+                        <TimelineRow
+                          key={entry.id}
+                          entry={entry}
+                          onClick={openDetail}
+                          rowRef={setEntryRef(entry.id)}
+                        />
                       ))}
                     </div>
                   </div>
@@ -240,7 +403,12 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
             <ScrollArea className="h-[600px]">
               <div className="space-y-3 pr-3">
                 {filteredEntries.map((entry) => (
-                  <TimelineRow key={entry.id} entry={entry} onClick={openDetail} />
+                  <TimelineRow
+                    key={entry.id}
+                    entry={entry}
+                    onClick={openDetail}
+                    rowRef={setEntryRef(entry.id)}
+                  />
                 ))}
               </div>
             </ScrollArea>
@@ -256,15 +424,19 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
 function TimelineRow({
   entry,
   onClick,
+  rowRef,
 }: {
   entry: UnifiedTimelineEntry;
   onClick: (e: UnifiedTimelineEntry) => void;
+  rowRef?: (el: HTMLDivElement | null) => void;
 }) {
   const m = (entry.metadata ?? {}) as Record<string, any>;
   const isClickable =
     entry.source !== 'deal_activity' || (m.activity_type as string | undefined) !== 'follow_up';
   return (
     <div
+      ref={rowRef}
+      data-entry-id={entry.id}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? () => onClick(entry) : undefined}
