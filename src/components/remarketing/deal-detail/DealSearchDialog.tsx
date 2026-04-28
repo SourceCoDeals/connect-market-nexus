@@ -15,12 +15,20 @@ interface DealSearchDialogProps {
 }
 
 interface SearchResult {
+  /** The raw uuid from the underlying source row (no source-prefix). */
+  id?: string;
   source: string;
   title: string;
   snippet: string;
   timestamp: string;
   metadata: Record<string, unknown>;
 }
+
+/**
+ * Custom event consumed by UnifiedDealTimeline. Keep in sync with
+ * UnifiedDealTimeline.tsx's ACTIVITY_SEARCH_JUMP_EVENT.
+ */
+const ACTIVITY_SEARCH_JUMP_EVENT = 'activity-search-jump';
 
 const SOURCE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   transcript: {
@@ -226,33 +234,68 @@ export function DealSearchDialog({ open, onOpenChange, dealId, listingId }: Deal
                       {config.icon}
                       {config.label} ({items.length})
                     </div>
-                    {items.map((result, idx) => (
-                      <div
-                        key={`${source}-${idx}`}
-                        className="rounded-lg border p-3 hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Badge
-                              variant="outline"
-                              className={`shrink-0 text-[10px] ${config.color}`}
-                            >
-                              {config.icon}
-                              <span className="ml-1">{config.label}</span>
-                            </Badge>
-                            <span className="text-sm font-medium truncate">{result.title}</span>
+                    {items.map((result, idx) => {
+                      const canDeepLink = !!result.id;
+                      const onClickResult = canDeepLink
+                        ? () => {
+                            onOpenChange(false);
+                            // Defer the dispatch so the dialog has a tick to unmount
+                            // before UnifiedDealTimeline scrolls + opens its drawer.
+                            setTimeout(() => {
+                              window.dispatchEvent(
+                                new CustomEvent(ACTIVITY_SEARCH_JUMP_EVENT, {
+                                  detail: {
+                                    rawId: result.id,
+                                    source: result.source,
+                                  },
+                                }),
+                              );
+                            }, 50);
+                          }
+                        : undefined;
+                      return (
+                        <div
+                          key={`${source}-${idx}`}
+                          role={canDeepLink ? 'button' : undefined}
+                          tabIndex={canDeepLink ? 0 : undefined}
+                          onClick={onClickResult}
+                          onKeyDown={
+                            canDeepLink
+                              ? (e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    onClickResult?.();
+                                  }
+                                }
+                              : undefined
+                          }
+                          className={`rounded-lg border p-3 transition-colors ${
+                            canDeepLink ? 'hover:bg-accent/50 cursor-pointer' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Badge
+                                variant="outline"
+                                className={`shrink-0 text-[10px] ${config.color}`}
+                              >
+                                {config.icon}
+                                <span className="ml-1">{config.label}</span>
+                              </Badge>
+                              <span className="text-sm font-medium truncate">{result.title}</span>
+                            </div>
+                            {result.timestamp && (
+                              <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                {format(new Date(result.timestamp), 'MMM d, yyyy h:mm a')}
+                              </span>
+                            )}
                           </div>
-                          {result.timestamp && (
-                            <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                              {format(new Date(result.timestamp), 'MMM d, yyyy h:mm a')}
-                            </span>
-                          )}
+                          <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                            <HighlightedSnippet text={result.snippet} query={query} />
+                          </p>
                         </div>
-                        <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed line-clamp-3">
-                          <HighlightedSnippet text={result.snippet} query={query} />
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}

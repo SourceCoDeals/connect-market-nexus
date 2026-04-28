@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,8 +15,11 @@ import {
   Search,
   Users,
   ListOrdered,
+  X,
+  Info,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useUnifiedDealActivityEntries,
   getActivityLabel,
@@ -23,6 +27,20 @@ import {
   type UnifiedTimelineEntry,
 } from '@/hooks/use-unified-deal-activity-entries';
 import { ActivityDetailDrawer } from './ActivityDetailDrawer';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+/**
+ * Custom event bridge: DealSearchDialog dispatches this with the entry id;
+ * UnifiedDealTimeline subscribes and scrolls + opens the drawer (Fix #5).
+ * Decouples the two components without lifting state to ReMarketingDealDetail.
+ */
+const ACTIVITY_SEARCH_JUMP_EVENT = 'activity-search-jump';
+export interface ActivitySearchJumpDetail {
+  entryId: string;
+  /** Original raw id from the FTS hit (no `call-`/`email-` etc. prefix). */
+  rawId?: string;
+  source?: string;
+}
 
 const FILTER_TABS: { label: string; value: FilterCategory }[] = [
   { label: 'All', value: 'all' },
@@ -52,25 +70,59 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
   // 200ms debounce — keeps the input responsive without re-filtering on
   // every keystroke for large feeds.
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchInput.trim().toLowerCase()), 200);
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 200);
     return () => clearTimeout(t);
   }, [searchInput]);
 
   const { entries: allEntries, isLoading } = useUnifiedDealActivityEntries(dealId, listingId);
 
+  // FTS via search-deal-history edge function — fires for queries ≥3 chars.
+  // For < 3 chars we fall back to the prior client-side substring filter.
+  const ftsEnabled = debouncedSearch.length >= 3;
+  const { data: ftsRawIds } = useQuery({
+    queryKey: ['unified-timeline-fts', listingId, debouncedSearch],
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await supabase.functions.invoke('search-deal-history', {
+        body: { query: debouncedSearch, listing_id: listingId, limit: 200 },
+      });
+      if (error) {
+        console.warn('FTS search failed; falling back to client-side substring', error);
+        return new Set();
+      }
+      const ids = ((data as { results?: Array<{ id?: string }> } | undefined)?.results ?? [])
+        .map((r) => r.id)
+        .filter((x): x is string => !!x);
+      return new Set(ids);
+    },
+    enabled: ftsEnabled && !!listingId,
+    staleTime: 60_000,
+  });
+
   const filteredEntries = useMemo(() => {
     let list = allEntries;
     if (activeFilter !== 'all') list = list.filter((e) => e.category === activeFilter);
     if (debouncedSearch) {
-      list = list.filter((e) => {
+      const lower = debouncedSearch.toLowerCase();
+      const substringFilter = (e: UnifiedTimelineEntry) => {
         const m = (e.metadata ?? {}) as Record<string, unknown>;
         return [e.title, e.description, e.contactEmail, m.body_preview as string | undefined]
           .filter(Boolean)
-          .some((s) => (s as string).toLowerCase().includes(debouncedSearch));
-      });
+          .some((s) => (s as string).toLowerCase().includes(lower));
+      };
+      if (ftsEnabled && ftsRawIds && ftsRawIds.size > 0) {
+        // Intersect FTS hits (matched on server-side full-text) with currently-loaded
+        // entries. The entry id has a source-prefix (e.g. `call-<uuid>`); strip it
+        // before comparing against the FTS raw uuid.
+        list = list.filter((e) => {
+          const rawId = e.id.replace(/^[a-z]+-/i, '');
+          return ftsRawIds.has(rawId) || substringFilter(e);
+        });
+      } else {
+        list = list.filter(substringFilter);
+      }
     }
     return list;
-  }, [allEntries, activeFilter, debouncedSearch]);
+  }, [allEntries, activeFilter, debouncedSearch, ftsEnabled, ftsRawIds]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<FilterCategory, number> = {
@@ -109,6 +161,40 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
     setDrawerEntry(entry);
     setDrawerOpen(true);
   }
+
+  // Refs for deep-link scroll-into-view (Fix #5).
+  const entryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const setEntryRef = (id: string) => (el: HTMLDivElement | null) => {
+    if (el) entryRefs.current.set(id, el);
+    else entryRefs.current.delete(id);
+  };
+
+  // Subscribe to deep-link events from DealSearchDialog. Match the event's
+  // entryId / rawId against currently-loaded entries; if found, scroll +
+  // open the drawer. If not (e.g. entry hasn't been loaded into the merged
+  // feed yet), no-op silently.
+  useEffect(() => {
+    function onJump(e: Event) {
+      const detail = (e as CustomEvent<ActivitySearchJumpDetail>).detail;
+      if (!detail) return;
+      const candidates: UnifiedTimelineEntry[] = [];
+      if (detail.entryId) {
+        const direct = allEntries.find((x) => x.id === detail.entryId);
+        if (direct) candidates.push(direct);
+      }
+      if (candidates.length === 0 && detail.rawId) {
+        const matched = allEntries.find((x) => x.id.replace(/^[a-z]+-/i, '') === detail.rawId);
+        if (matched) candidates.push(matched);
+      }
+      const target = candidates[0];
+      if (!target) return;
+      const el = entryRefs.current.get(target.id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      openDetail(target);
+    }
+    window.addEventListener(ACTIVITY_SEARCH_JUMP_EVENT, onJump);
+    return () => window.removeEventListener(ACTIVITY_SEARCH_JUMP_EVENT, onJump);
+  }, [allEntries]);
 
   if (isLoading) {
     return (
@@ -167,15 +253,26 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Search */}
+          {/* Search — full-text via search-deal-history edge function for ≥3 chars,
+              client-side substring for shorter queries */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search subject, body, contact email..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-9 h-8 text-sm"
+              className="pl-9 pr-9 h-8 text-sm"
             />
+            {searchInput && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setSearchInput('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded hover:bg-muted text-muted-foreground inline-flex items-center justify-center"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Filter chips */}
@@ -226,10 +323,26 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
                       <Badge variant="secondary" className="text-[10px] font-normal">
                         {g.entries.length}
                       </Badge>
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            On this deal: shows touches recorded on this listing only. Per-contact
+                            history below shows firm-wide activity.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                     <div className="space-y-3">
                       {g.entries.map((entry) => (
-                        <TimelineRow key={entry.id} entry={entry} onClick={openDetail} />
+                        <TimelineRow
+                          key={entry.id}
+                          entry={entry}
+                          onClick={openDetail}
+                          rowRef={setEntryRef(entry.id)}
+                        />
                       ))}
                     </div>
                   </div>
@@ -240,7 +353,12 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
             <ScrollArea className="h-[600px]">
               <div className="space-y-3 pr-3">
                 {filteredEntries.map((entry) => (
-                  <TimelineRow key={entry.id} entry={entry} onClick={openDetail} />
+                  <TimelineRow
+                    key={entry.id}
+                    entry={entry}
+                    onClick={openDetail}
+                    rowRef={setEntryRef(entry.id)}
+                  />
                 ))}
               </div>
             </ScrollArea>
@@ -256,15 +374,19 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
 function TimelineRow({
   entry,
   onClick,
+  rowRef,
 }: {
   entry: UnifiedTimelineEntry;
   onClick: (e: UnifiedTimelineEntry) => void;
+  rowRef?: (el: HTMLDivElement | null) => void;
 }) {
   const m = (entry.metadata ?? {}) as Record<string, any>;
   const isClickable =
     entry.source !== 'deal_activity' || (m.activity_type as string | undefined) !== 'follow_up';
   return (
     <div
+      ref={rowRef}
+      data-entry-id={entry.id}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? () => onClick(entry) : undefined}
